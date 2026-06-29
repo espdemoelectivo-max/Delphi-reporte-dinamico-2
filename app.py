@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-from io import StringIO
+from io import StringIO, BytesIO
 
 st.set_page_config(page_title="Reporte Clínico Delphi", layout="wide")
 
@@ -21,7 +21,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════
-# CARGA DE DATOS
+# CARGA DE DATOS — forzar UTF-8 con BOM y latin1 como fallback
 # ═══════════════════════════════════════════════════════════
 @st.cache_data(ttl=30)
 def cargar_datos():
@@ -29,116 +29,150 @@ def cargar_datos():
     headers = {"User-Agent": "Mozilla/5.0"}
     r = requests.get(url, headers=headers, allow_redirects=True)
     r.raise_for_status()
-    df = pd.read_csv(StringIO(r.text), encoding="utf-8", header=0)
+    # Intentar encodings en orden hasta que funcionen los acentos
+    raw = r.content
+    for enc in ("utf-8-sig", "utf-8", "latin-1", "cp1252"):
+        try:
+            text = raw.decode(enc)
+            df = pd.read_csv(StringIO(text), header=0)
+            # Verificar que los acentos estén bien (sin Ã)
+            sample = " ".join(df.columns.tolist())
+            if "Ã" not in sample:
+                df.columns = df.columns.str.strip()
+                return df
+        except Exception:
+            continue
+    # Último recurso
+    df = pd.read_csv(BytesIO(raw), encoding="latin-1", header=0)
     df.columns = df.columns.str.strip()
     return df
 
-df    = cargar_datos()
-COLS  = list(df.columns)
+df   = cargar_datos()
+COLS = list(df.columns)
 
 # ═══════════════════════════════════════════════════════════
-# HELPERS — definidos ANTES de usarlos
+# HELPERS
 # ═══════════════════════════════════════════════════════════
-def col_por_indice(idx):
+def ci(idx):
+    """Columna por índice absoluto (contando Marca temporal en 0)."""
     return COLS[idx] if idx < len(COLS) else "__missing__"
 
-def detectar_col(*keyword_groups):
-    """Acepta múltiples grupos; retorna la primera columna que matchea cualquier grupo."""
-    for keywords in keyword_groups:
-        for col in COLS:
-            col_l = col.lower()
-            if all(kw.lower() in col_l for kw in keywords):
-                return col
-    return None
-
 # ═══════════════════════════════════════════════════════════
-# DETECCIÓN DE COLUMNAS CLAVE
-# ═══════════════════════════════════════════════════════════
-col_nombre   = detectar_col(["nombre", "paciente"])
-col_rut      = detectar_col(["rut"])
-# col_tipo: múltiples intentos, luego fallback por índice 3
-col_tipo     = (detectar_col(["tipo", "evaluación"], ["tipo", "evaluacion"],
-                              ["registrar"], ["evaluación a"], ["evaluacion a"])
-                or col_por_indice(3))
-
-col_edad     = detectar_col(["edad"])                                            or col_por_indice(2)
-col_diag     = detectar_col(["diagnóstico"], ["diagnostico"])                    or col_por_indice(4)
-col_medico   = detectar_col(["médico"], ["medico"])                              or col_por_indice(5)
-col_kine     = detectar_col(["kinesiólogo"], ["kinesiologo"])                    or col_por_indice(6)
-col_contacto = detectar_col(["contacto"])                                        or col_por_indice(7)
-col_vis_med  = detectar_col(["visita", "médico"], ["visita", "medico"])          or col_por_indice(8)
-col_licencia = detectar_col(["licencia"])                                        or col_por_indice(9)
-
-# ═══════════════════════════════════════════════════════════
-# INSPECTOR (expandible — cerrar cuando todo funcione)
-# ═══════════════════════════════════════════════════════════
-with st.expander("🔧 Inspector de columnas reales del Sheet", expanded=False):
-    st.write(f"**Total columnas detectadas: {len(COLS)}**")
-    st.write(f"col_tipo resuelto como: `{repr(col_tipo)}`")
-    for i, c in enumerate(COLS):
-        st.write(f"`{i:02d}` → `{repr(c)}`")
-
-# ═══════════════════════════════════════════════════════════
-# MAPEO COMPLETO — mezcla detección auto + índice de posición
+# MAPEO EXACTO POR ÍNDICE
+# 00 = Marca temporal  (oculta, no se usa)
+# 01 = Nombre del Paciente
+# 02 = Rut
+# 03 = Edad
+# 04 = Tipo de Evaluación a registrar
+# 05 = Diagnóstico médico
+# 06 = Médico
+# 07 = Kinesiólogo
+# 08 = Contacto
+# 09 = Visita Médico
+# 10 = Inicio licencia
+# 11 = Evaluación inicial (fecha)
+# 12 = Dolor EVA inicial
+# 13 = Rango de Movimiento (ROM)
+# 14 = Fuerza CORE
+# 15 = Groc inicial
+# 16 = (Marcar los pilares abordados en la sesión):
+# 17 = Pilar 1 - Sedentarismo
+# 18 = Pilar 2 - Sueño
+# 19 = Pilar 3 - Estrés
+# 20 = Pilar 4 - Alimentación
+# 21 = Pilar 5 - Tóxicos
+# 22 = Pilar 6 - Relaciones
+# 23 = Recomendación para el hogar
+# 24 = Notas para el médico tratante:
+# 25 = Sesión hito (fecha)
+# 26 = Dolor EVA Actual
+# 27 = Rango de Movimiento (ROM).1
+# 28 = Fuerza CORE.1
+# 29 = Groc Sesión Hito
+# 30 = (Marcar los pilares abordados en la sesión):.1
+# 31 = Pilar 1 - Sedentarismo.1
+# 32 = Pilar 2 - Sueño.1
+# 33 = Pilar 3 - Estrés.1
+# 34 = Pilar 4 - Alimentación.1
+# 35 = Pilar 5 - Tóxicos.1
+# 36 = Pilar 6 - Relaciones.1
+# 37 = Recomendación para el hogar (pilares seleccionados)
+# 38 = Decisión Clínica (Hito Intermedio):
+# 39 = Notas para el médico tratante:.1
+# 40 = Evaluación Final (fecha)
+# 41 = Dolor EVA Actual.1
+# 42 = Rango de Movimiento (ROM).2
+# 43 = Fuerza CORE.2
+# 44 = Groc Evaluación Final
+# 45 = (Marcar los pilares abordados en la sesión):.2
+# 46 = Pilar 1 - Sedentarismo.2
+# 47 = Pilar 2 - Sueño.2
+# 48 = Pilar 3 - Estrés.2
+# 49 = Pilar 4 - Alimentación.2
+# 50 = Pilar 5 - Tóxicos.2
+# 51 = Pilar 6 - Relaciones.2
+# 52 = Recomendación para el hogar (pilares seleccionados).1
+# 53 = Notas para el médico tratante:.2
+# 54 = Motivo del Alta
 # ═══════════════════════════════════════════════════════════
 C = {
-    "nombre":        col_nombre,
-    "rut":           col_rut,
-    "edad":          col_edad,
-    "tipo_eval":     col_tipo,
-    "diagnostico":   col_diag,
-    "medico":        col_medico,
-    "kinesiologo":   col_kine,
-    "contacto":      col_contacto,
-    "visita_medico": col_vis_med,
-    "inicio_lic":    col_licencia,
+    "nombre":        ci(1),
+    "rut":           ci(2),
+    "edad":          ci(3),
+    "tipo_eval":     ci(4),
+    "diagnostico":   ci(5),
+    "medico":        ci(6),
+    "kinesiologo":   ci(7),
+    "contacto":      ci(8),
+    "visita_medico": ci(9),
+    "inicio_lic":    ci(10),
     # EVALUACIÓN INICIAL
-    "fecha_ini":     col_por_indice(10),
-    "dolor_ini":     col_por_indice(11),
-    "rom_ini":       col_por_indice(12),
-    "core_ini":      col_por_indice(13),
-    "groc_ini":      col_por_indice(14),
-    "pilares_ini":   col_por_indice(15),
-    "p1_ini":        col_por_indice(16),
-    "p2_ini":        col_por_indice(17),
-    "p3_ini":        col_por_indice(18),
-    "p4_ini":        col_por_indice(19),
-    "p5_ini":        col_por_indice(20),
-    "p6_ini":        col_por_indice(21),
-    "hogar_ini":     col_por_indice(22),
-    "notas_ini":     col_por_indice(23),
+    "fecha_ini":     ci(11),
+    "dolor_ini":     ci(12),
+    "rom_ini":       ci(13),
+    "core_ini":      ci(14),
+    "groc_ini":      ci(15),
+    "pilares_ini":   ci(16),
+    "p1_ini":        ci(17),
+    "p2_ini":        ci(18),
+    "p3_ini":        ci(19),
+    "p4_ini":        ci(20),
+    "p5_ini":        ci(21),
+    "p6_ini":        ci(22),
+    "hogar_ini":     ci(23),
+    "notas_ini":     ci(24),
     # SESIÓN HITO
-    "fecha_hito":    col_por_indice(24),
-    "dolor_hito":    col_por_indice(25),
-    "rom_hito":      col_por_indice(26),
-    "core_hito":     col_por_indice(27),
-    "groc_hito":     col_por_indice(28),
-    "pilares_hito":  col_por_indice(29),
-    "p1_hito":       col_por_indice(30),
-    "p2_hito":       col_por_indice(31),
-    "p3_hito":       col_por_indice(32),
-    "p4_hito":       col_por_indice(33),
-    "p5_hito":       col_por_indice(34),
-    "p6_hito":       col_por_indice(35),
-    "hogar_hito":    col_por_indice(36),
-    "decision":      col_por_indice(37),
-    "notas_hito":    col_por_indice(38),
+    "fecha_hito":    ci(25),
+    "dolor_hito":    ci(26),
+    "rom_hito":      ci(27),
+    "core_hito":     ci(28),
+    "groc_hito":     ci(29),
+    "pilares_hito":  ci(30),
+    "p1_hito":       ci(31),
+    "p2_hito":       ci(32),
+    "p3_hito":       ci(33),
+    "p4_hito":       ci(34),
+    "p5_hito":       ci(35),
+    "p6_hito":       ci(36),
+    "hogar_hito":    ci(37),
+    "decision":      ci(38),
+    "notas_hito":    ci(39),
     # EVALUACIÓN FINAL
-    "fecha_final":   col_por_indice(39),
-    "dolor_final":   col_por_indice(40),
-    "rom_final":     col_por_indice(41),
-    "core_final":    col_por_indice(42),
-    "groc_final":    col_por_indice(43),
-    "pilares_final": col_por_indice(44),
-    "p1_final":      col_por_indice(45),
-    "p2_final":      col_por_indice(46),
-    "p3_final":      col_por_indice(47),
-    "p4_final":      col_por_indice(48),
-    "p5_final":      col_por_indice(49),
-    "p6_final":      col_por_indice(50),
-    "hogar_final":   col_por_indice(51),
-    "notas_final":   col_por_indice(52),
-    "motivo_alta":   col_por_indice(53),
+    "fecha_final":   ci(40),
+    "dolor_final":   ci(41),
+    "rom_final":     ci(42),
+    "core_final":    ci(43),
+    "groc_final":    ci(44),
+    "pilares_final": ci(45),
+    "p1_final":      ci(46),
+    "p2_final":      ci(47),
+    "p3_final":      ci(48),
+    "p4_final":      ci(49),
+    "p5_final":      ci(50),
+    "p6_final":      ci(51),
+    "hogar_final":   ci(52),
+    "notas_final":   ci(53),
+    "motivo_alta":   ci(54),
 }
 
 PILARES = ["Sedentarismo", "Sueño", "Estrés", "Alimentación", "Tóxicos", "Relaciones"]
@@ -180,7 +214,7 @@ opcion     = st.sidebar.selectbox("Seleccionar Paciente:", pacientes["display"].
 rut_sel    = pacientes.loc[pacientes["display"] == opcion, C["rut"]].values[0].strip()
 nombre_sel = pacientes.loc[pacientes["display"] == opcion, C["nombre"]].values[0].strip()
 
-# Filas del paciente por RUT
+# Todas las filas del paciente por RUT
 filas = df[df[C["rut"]].astype(str).str.strip() == rut_sel]
 
 def ultima_fila(keyword):
@@ -328,3 +362,12 @@ st.divider()
 bloque_clinico("🔁 SESIÓN HITO (CONTROL DE AVANCE)",  fila_hito,  "hito",  is_hito=True)
 st.divider()
 bloque_clinico("✅ EVALUACIÓN FINAL Y ALTA",           fila_final, "final", is_final=True)
+
+# ═══════════════════════════════════════════════════════════
+# DEBUG — solo visible si algo falla
+# ═══════════════════════════════════════════════════════════
+with st.expander("🔧 Inspector (cerrar cuando todo funcione)", expanded=False):
+    st.write(f"**Columna tipo_eval:** `{C['tipo_eval']}`")
+    st.write(f"**Total columnas:** {len(COLS)}")
+    for i, c in enumerate(COLS):
+        st.write(f"`{i:02d}` → `{repr(c)}`")
