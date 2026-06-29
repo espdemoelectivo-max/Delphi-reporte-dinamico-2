@@ -18,11 +18,15 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. Conexión Automatizada (TTL=30 segundos)
+import requests
+from io import StringIO
+
 @st.cache_data(ttl=30)
 def cargar_datos():
-    # ¡ATENCIÓN! Reemplaza 'NUEVO_GID' por el número gid de tu nueva hoja de respuestas.
     url = "https://docs.google.com/spreadsheets/d/1hzSkpdgYFo6RYHDr5Prj47woo5xUT318tS_i_iGWjk8/export?format=csv&gid=923584266"
-    data = pd.read_csv(url)
+    response = requests.get(url, allow_redirects=True)
+    response.raise_for_status()
+    data = pd.read_csv(StringIO(response.text))
     data.columns = data.columns.str.strip()
     return data
 
