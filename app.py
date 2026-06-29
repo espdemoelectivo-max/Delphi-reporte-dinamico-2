@@ -18,148 +18,201 @@ st.markdown("""
     div[data-testid="stSidebar"] { background-color: #1E2D6B; }
     div[data-testid="stSidebar"] * { color: white !important; }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# ── CARGA DE DATOS ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+# MAPEO EXACTO DE COLUMNAS
+# (Columnas duplicadas en el Sheet → pandas las renombra con .1 .2)
+# ═══════════════════════════════════════════════════════════
+C = {
+    # Datos generales
+    "nombre":       "Nombre del Paciente",
+    "rut":          "Rut",
+    "edad":         "Edad",
+    "tipo_eval":    "Tipo de Evaluación a registrar",
+    "diagnostico":  "Diagnóstico médico",
+    "medico":       "Médico",
+    "kinesiologo":  "Kinesiólogo",
+    "contacto":     "Contacto",
+    "visita_medico":"Visita Médico",
+    "inicio_lic":   "Inicio licencia",
+
+    # ── EVALUACIÓN INICIAL ──────────────────────────────────
+    "fecha_ini":    "Evaluación inicial",
+    "dolor_ini":    "Dolor EVA inicial",
+    "rom_ini":      "Rango de Movimiento (ROM)",
+    "core_ini":     "Fuerza CORE",
+    "groc_ini":     "Groc inicial",
+    "pilares_ini":  "(Marcar los pilares abordados en la sesión):",
+    "p1_ini":       "Pilar 1 - Sedentarismo",
+    "p2_ini":       "Pilar 2 - Sueño",
+    "p3_ini":       "Pilar 3 - Estrés",
+    "p4_ini":       "Pilar 4 - Alimentación",
+    "p5_ini":       "Pilar 5 - Tóxicos",
+    "p6_ini":       "Pilar 6 - Relaciones",
+    "hogar_ini":    "Recomendación para el hogar",
+    "notas_ini":    "Notas para el médico tratante:",
+
+    # ── SESIÓN HITO ─────────────────────────────────────────
+    "fecha_hito":   "Sesión hito",
+    "dolor_hito":   "Dolor EVA Actual",
+    "rom_hito":     "Rango de Movimiento (ROM).1",
+    "core_hito":    "Fuerza CORE.1",
+    "groc_hito":    "Groc Sesión Hito",
+    "pilares_hito": "(Marcar los pilares abordados en la sesión):.1",
+    "p1_hito":      "Pilar 1 - Sedentarismo.1",
+    "p2_hito":      "Pilar 2 - Sueño.1",
+    "p3_hito":      "Pilar 3 - Estrés.1",
+    "p4_hito":      "Pilar 4 - Alimentación.1",
+    "p5_hito":      "Pilar 5 - Tóxicos.1",
+    "p6_hito":      "Pilar 6 - Relaciones.1",
+    "hogar_hito":   "Recomendación para el hogar (pilares seleccionados)",
+    "decision":     "Decisión Clínica (Hito Intermedio):",
+    "notas_hito":   "Notas para el médico tratante:.1",
+
+    # ── EVALUACIÓN FINAL ────────────────────────────────────
+    "fecha_final":  "Evaluación Final",
+    "dolor_final":  "Dolor EVA Actual.1",
+    "rom_final":    "Rango de Movimiento (ROM).2",
+    "core_final":   "Fuerza CORE.2",
+    "groc_final":   "Groc Evaluación Final",
+    "pilares_final":"(Marcar los pilares abordados en la sesión):.2",
+    "p1_final":     "Pilar 1 - Sedentarismo.2",
+    "p2_final":     "Pilar 2 - Sueño.2",
+    "p3_final":     "Pilar 3 - Estrés.2",
+    "p4_final":     "Pilar 4 - Alimentación.2",
+    "p5_final":     "Pilar 5 - Tóxicos.2",
+    "p6_final":     "Pilar 6 - Relaciones.2",
+    "hogar_final":  "Recomendación para el hogar (pilares seleccionados) ",  # tiene espacio al final
+    "notas_final":  "Notas para el médico tratante:.2",
+    "motivo_alta":  "Motivo del Alta",
+}
+
+PILARES = ["Sedentarismo", "Sueño", "Estrés", "Alimentación", "Tóxicos", "Relaciones"]
+
+# ═══════════════════════════════════════════════════════════
+# CARGA DE DATOS
+# ═══════════════════════════════════════════════════════════
 @st.cache_data(ttl=30)
 def cargar_datos():
     url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/export?format=csv&gid=923584266"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers, allow_redirects=True)
-    response.raise_for_status()
-    data = pd.read_csv(StringIO(response.text), encoding="utf-8", header=0)
-    data.columns = data.columns.str.strip()
-    return data
+    r = requests.get(url, headers=headers, allow_redirects=True)
+    r.raise_for_status()
+    df = pd.read_csv(StringIO(r.text), encoding="utf-8", header=0)
+    df.columns = df.columns.str.strip()
+    return df
 
 df = cargar_datos()
 
-# ── DETECCIÓN DE COLUMNAS CLAVE ────────────────────────────────────────────────
-# Muestra las columnas en sidebar para debug (puedes comentarlo luego)
-with st.sidebar.expander("🔧 Columnas detectadas (debug)", expanded=False):
-    st.write(list(df.columns))
+# ── Verificación de columnas (debug oculto) ──────────────────
+cols_reales = set(df.columns.tolist())
+cols_esperadas = set(C.values())
+faltantes = cols_esperadas - cols_reales
 
-# Detectar columna de nombre y tipo de evaluación dinámicamente
-col_nombre = next((c for c in df.columns if "nombre" in c.lower()), None)
-col_tipo   = next((c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()), None)
-col_rut    = next((c for c in df.columns if "rut" in c.lower()), None)
-
-if not col_nombre or not col_tipo or not col_rut:
-    st.error(f"No se encontraron columnas clave. Columnas disponibles: {list(df.columns)}")
-    st.stop()
-
-# ── FUNCIÓN DE EXTRACCIÓN SEGURA ───────────────────────────────────────────────
-def get_val(row, col_name, default="—"):
-    """Extrae un valor de una fila (Series) de forma segura."""
-    if row is None:
+# ═══════════════════════════════════════════════════════════
+# FUNCIÓN DE EXTRACCIÓN SEGURA
+# ═══════════════════════════════════════════════════════════
+def g(fila, key, default="—"):
+    """Extrae valor de una fila (pd.Series) usando la clave del dict C."""
+    if fila is None:
         return default
-    if col_name not in row.index:
+    col_name = C.get(key)
+    if not col_name or col_name not in fila.index:
         return default
-    val = row[col_name]
+    val = fila[col_name]
     if pd.isna(val) or str(val).strip() in ("", "nan"):
         return default
     return str(val).strip()
 
-# ── BÚSQUEDA DE COLUMNA POR KEYWORD ───────────────────────────────────────────
-def find_col(columns, *keywords):
-    """Busca una columna que contenga todas las keywords (case-insensitive)."""
-    for col in columns:
-        col_lower = col.lower()
-        if all(kw.lower() in col_lower for kw in keywords):
-            return col
-    return None
-
-cols = list(df.columns)
-
-# ── SIDEBAR: SELECCIÓN POR NOMBRE + RUT ───────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+# SIDEBAR — Selección por RUT
+# ═══════════════════════════════════════════════════════════
 st.sidebar.image(
     "https://raw.githubusercontent.com/espdemoelectivo-max/delphi-reporte-dinamico-2/main/Delphi Logo.png",
     use_container_width=True
 )
 st.sidebar.title("Gestión Delphi")
 
-# Construir lista de pacientes únicos por RUT (tomamos el nombre de la primera aparición)
-pacientes_df = (
-    df[[col_nombre, col_rut]]
-    .dropna(subset=[col_rut])
-    .drop_duplicates(subset=[col_rut])
+# Un registro por RUT único (nombre de la primera aparición)
+pacientes = (
+    df[[C["nombre"], C["rut"]]]
+    .dropna(subset=[C["rut"]])
+    .drop_duplicates(subset=[C["rut"]])
     .reset_index(drop=True)
 )
-pacientes_df["display"] = pacientes_df[col_nombre].str.strip() + "  |  RUT: " + pacientes_df[col_rut].str.strip()
+pacientes["display"] = (
+    pacientes[C["nombre"]].str.strip() + "  |  " + pacientes[C["rut"]].str.strip()
+)
 
-opcion = st.sidebar.selectbox("Seleccionar Paciente:", pacientes_df["display"].tolist())
-rut_seleccionado = pacientes_df.loc[pacientes_df["display"] == opcion, col_rut].values[0]
-nombre_seleccionado = pacientes_df.loc[pacientes_df["display"] == opcion, col_nombre].values[0]
+opcion = st.sidebar.selectbox("Seleccionar Paciente:", pacientes["display"].tolist())
+rut_sel    = pacientes.loc[pacientes["display"] == opcion, C["rut"]].values[0].strip()
+nombre_sel = pacientes.loc[pacientes["display"] == opcion, C["nombre"]].values[0].strip()
 
-# ── FILTRAR TODAS LAS FILAS DEL PACIENTE POR RUT ──────────────────────────────
-filas_paciente = df[df[col_rut].astype(str).str.strip() == str(rut_seleccionado).strip()]
+# Todas las filas del paciente
+filas = df[df[C["rut"]].astype(str).str.strip() == rut_sel]
 
-# Separar por tipo de evaluación (flexible, acepta variaciones de texto)
-def filtrar_tipo(df_p, keyword):
-    mask = df_p[col_tipo].astype(str).str.contains(keyword, case=False, na=False)
-    resultado = df_p[mask]
-    return resultado.iloc[-1] if not resultado.empty else None  # última fila de ese tipo
+# Separar por tipo de evaluación (tomar la última fila de cada tipo)
+def ultima_fila(tipo_keyword):
+    mask = filas[C["tipo_eval"]].astype(str).str.contains(tipo_keyword, case=False, na=False)
+    sub = filas[mask]
+    return sub.iloc[-1] if not sub.empty else None
 
-fila_inicial = filtrar_tipo(filas_paciente, "Inicial")
-fila_hito    = filtrar_tipo(filas_paciente, "Hito")
-fila_final   = filtrar_tipo(filas_paciente, "Final")
+fila_ini   = ultima_fila("Inicial")
+fila_hito  = ultima_fila("Hito")
+fila_final = ultima_fila("Final")
 
-# ── HEADER ────────────────────────────────────────────────────────────────────
+# Fila de referencia para datos demográficos
+fila_demo = next((f for f in [fila_ini, fila_hito, fila_final] if f is not None), None)
+
+# ═══════════════════════════════════════════════════════════
+# HEADER
+# ═══════════════════════════════════════════════════════════
 st.markdown(f"""
     <div class="report-header">
         <h1 style="color:white; margin-bottom:0; letter-spacing:2px;">CENTRO CLÍNICO DELPHI</h1>
         <p style="color:#E0157A; font-size:1.1em; font-weight:600; margin:4px 0;">Reporte Kinesiológico Estandarizado</p>
-        <h3 style="color:#f0f0f0; margin-top:6px;">PACIENTE: {nombre_seleccionado.upper()}</h3>
+        <h3 style="color:#f0f0f0; margin-top:6px;">PACIENTE: {nombre_sel.upper()}</h3>
     </div>""", unsafe_allow_html=True)
 
-# ── INFO PERSONAL (desde fila_inicial o cualquier fila disponible) ─────────────
-# Usar la primera fila disponible para datos demográficos
-fila_demo = fila_inicial if fila_inicial is not None else (fila_hito if fila_hito is not None else fila_final)
-
-col_diag   = find_col(cols, "diagnóstico") or find_col(cols, "diagnostico")
-col_medico = find_col(cols, "médico") or find_col(cols, "medico")
-col_kine   = find_col(cols, "kinesiólogo") or find_col(cols, "kinesiologo")
-col_cont   = find_col(cols, "contacto")
-col_edad   = find_col(cols, "edad")
-col_vis_med= find_col(cols, "visita", "médico") or find_col(cols, "visita", "medico")
-col_lic    = find_col(cols, "licencia")
-
+# ═══════════════════════════════════════════════════════════
+# BLOQUE INFO PERSONAL
+# ═══════════════════════════════════════════════════════════
 ca, cb, cc = st.columns(3)
 with ca:
     st.markdown(f"""<div class="info-box">
-        <b style="color:#1E2D6B;">Paciente:</b> {nombre_seleccionado}<br>
-        <b style="color:#1E2D6B;">RUT:</b> {rut_seleccionado}<br>
-        <b style="color:#1E2D6B;">Edad:</b> {get_val(fila_demo, col_edad)} años
+        <b style="color:#1E2D6B;">Paciente:</b> {nombre_sel}<br>
+        <b style="color:#1E2D6B;">RUT:</b> {rut_sel}<br>
+        <b style="color:#1E2D6B;">Edad:</b> {g(fila_demo, "edad")} años
     </div>""", unsafe_allow_html=True)
 with cb:
     st.markdown(f"""<div class="info-box">
-        <b style="color:#1E2D6B;">Diagnóstico:</b><br>{get_val(fila_demo, col_diag)}<br>
-        <b style="color:#1E2D6B;">Visita Médico:</b> {get_val(fila_demo, col_vis_med)}
+        <b style="color:#1E2D6B;">Diagnóstico:</b><br>{g(fila_demo, "diagnostico")}<br><br>
+        <b style="color:#1E2D6B;">Visita Médico:</b> {g(fila_demo, "visita_medico")}
     </div>""", unsafe_allow_html=True)
 with cc:
     st.markdown(f"""<div class="info-box">
-        <b style="color:#1E2D6B;">Médico:</b> {get_val(fila_demo, col_medico)}<br>
-        <b style="color:#1E2D6B;">Kinesiólogo:</b> {get_val(fila_demo, col_kine)}<br>
-        <b style="color:#1E2D6B;">Contacto:</b> {get_val(fila_demo, col_cont)}
+        <b style="color:#1E2D6B;">Médico:</b> {g(fila_demo, "medico")}<br>
+        <b style="color:#1E2D6B;">Kinesiólogo:</b> {g(fila_demo, "kinesiologo")}<br>
+        <b style="color:#1E2D6B;">Contacto:</b> {g(fila_demo, "contacto")}
     </div>""", unsafe_allow_html=True)
 
-# ── CRONOLOGÍA ────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+# CRONOLOGÍA
+# ═══════════════════════════════════════════════════════════
 st.write("")
 st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>📅 CRONOLOGÍA DEL TRATAMIENTO</p>", unsafe_allow_html=True)
 
-col_eval_ini_f  = find_col(cols, "evaluación inicial") or find_col(cols, "evaluacion inicial")
-col_sesion_hito = find_col(cols, "sesión hito") or find_col(cols, "sesion hito")
-col_eval_fin_f  = find_col(cols, "evaluación final") or find_col(cols, "evaluacion final")
-
-d1,d2,d3,d4,d5,d6 = st.columns(6)
+d1, d2, d3, d4, d5, d6 = st.columns(6)
 fechas = [
-    ("Visita Médico",   get_val(fila_demo, col_vis_med)),
-    ("Inicio Licencia", get_val(fila_inicial, col_lic)),
-    ("Eval. Inicial",   get_val(fila_inicial, col_eval_ini_f)),
+    ("Visita Médico",   g(fila_demo,  "visita_medico")),
+    ("Inicio Licencia", g(fila_demo,  "inicio_lic")),
+    ("Eval. Inicial",   g(fila_ini,   "fecha_ini")),
     ("1º Sesión Kine",  "—"),
-    ("Hito (Sesión 6)", get_val(fila_hito, col_sesion_hito)),
-    ("Eval. Final",     get_val(fila_final, col_eval_fin_f)),
+    ("Hito (Sesión 6)", g(fila_hito,  "fecha_hito")),
+    ("Eval. Final",     g(fila_final, "fecha_final")),
 ]
-for col_ui, (label, date) in zip([d1,d2,d3,d4,d5,d6], fechas):
+for col_ui, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
     col_ui.markdown(f"""<div class="date-box">
         <small style="color:#9B9B9B; font-weight:600;">{label}</small><br>
         <b style="color:#1E2D6B;">{date}</b>
@@ -167,75 +220,25 @@ for col_ui, (label, date) in zip([d1,d2,d3,d4,d5,d6], fechas):
 
 st.divider()
 
-# ── PILARES ───────────────────────────────────────────────────────────────────
-PILARES_NOMBRES = ["Sedentarismo", "Sueño", "Estrés", "Alimentación", "Tóxicos", "Relaciones"]
-
-def encontrar_col_pilar(cols, nombre_pilar, sufijo_extra=""):
-    """Busca la columna de un pilar específico, con sufijo opcional para hito/final."""
-    for c in cols:
-        if nombre_pilar.lower() in c.lower() and "pilar" in c.lower():
-            if sufijo_extra == "" or sufijo_extra in c:
-                return c
-    return None
-
-def mostrar_pilares(fila, sufijo_cols=""):
-    """
-    sufijo_cols: "" para inicial, ".1" para hito, ".2" para final
-    (así maneja los nombres duplicados que pandas auto-renombra con .1 .2)
-    """
-    if fila is None:
-        return
-
-    # Buscar columna de checkboxes de pilares abordados
-    col_checkbox = None
-    for c in cols:
-        if "pilares abordados" in c.lower() or ("marcar" in c.lower() and "pilar" in c.lower()):
-            if sufijo_cols == "" and not c.endswith(".1") and not c.endswith(".2"):
-                col_checkbox = c
-                break
-            elif sufijo_cols and c.endswith(sufijo_cols):
-                col_checkbox = c
-                break
-
-    pilares_raw = get_val(fila, col_checkbox, "")
-    pilares_activos = [n for n in PILARES_NOMBRES if n.lower() in pilares_raw.lower()] if pilares_raw != "—" else []
-
-    # Buscar columna de recomendación para el hogar
-    col_hogar = None
-    for c in cols:
-        if "recomendación para el hogar" in c.lower() or "recomendacion para el hogar" in c.lower():
-            if sufijo_cols == "" and not c.endswith(".1") and not c.endswith(".2") and not c.endswith(" "):
-                col_hogar = c
-                break
-            elif sufijo_cols and c.endswith(sufijo_cols):
-                col_hogar = c
-                break
-    # fallback: tomar la primera que matchee
-    if not col_hogar:
-        col_hogar = next((c for c in cols if "recomendación para el hogar" in c.lower() or "recomendacion para el hogar" in c.lower()), None)
+# ═══════════════════════════════════════════════════════════
+# FUNCIÓN PILARES
+# ═══════════════════════════════════════════════════════════
+def mostrar_pilares(fila, sufijo):
+    """sufijo: 'ini' | 'hito' | 'final'"""
+    pilares_raw = g(fila, f"pilares_{sufijo}", "")
+    pilares_activos = [n for n in PILARES if n.lower() in pilares_raw.lower()] if pilares_raw != "—" else []
 
     st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px; margin-top:16px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
     col_tabs_ui, col_hogar_ui = st.columns([3, 1])
 
     with col_tabs_ui:
-        tab_labels = [f"✅ {n}" if n in pilares_activos else f"○ {n}" for n in PILARES_NOMBRES]
+        tab_labels = [f"✅ {n}" if n in pilares_activos else f"○ {n}" for n in PILARES]
         tabs = st.tabs(tab_labels)
-
-        for tab, nombre in zip(tabs, PILARES_NOMBRES):
+        claves_pilar = [f"p1_{sufijo}", f"p2_{sufijo}", f"p3_{sufijo}",
+                        f"p4_{sufijo}", f"p5_{sufijo}", f"p6_{sufijo}"]
+        for tab, nombre, clave in zip(tabs, PILARES, claves_pilar):
             with tab:
-                # Buscar columna del pilar específico
-                col_p = None
-                for c in cols:
-                    if nombre.lower() in c.lower() and "pilar" in c.lower():
-                        if sufijo_cols == "" and not c.endswith(".1") and not c.endswith(".2"):
-                            col_p = c
-                            break
-                        elif sufijo_cols and c.endswith(sufijo_cols):
-                            col_p = c
-                            break
-
-                recomendacion = get_val(fila, col_p, "Sin indicaciones registradas")
-
+                recomendacion = g(fila, clave, "Sin indicaciones registradas")
                 if nombre in pilares_activos:
                     st.markdown(f"""
                         <div style="background:#e8eaf6; padding:18px; border-radius:10px; border-left:6px solid #E0157A;">
@@ -250,77 +253,66 @@ def mostrar_pilares(fila, sufijo_cols=""):
                         </div>""", unsafe_allow_html=True)
 
     with col_hogar_ui:
-        rec_hogar = get_val(fila, col_hogar, "Sin indicaciones")
+        rec_hogar = g(fila, f"hogar_{sufijo}")
         st.markdown(f"""
             <div class="hogar-card">
                 <h4 style="color:#1E2D6B; margin-top:0;">🏠 Recomendación para el hogar</h4>
                 <p style="font-size:1em; margin:0;">{rec_hogar}</p>
             </div>""", unsafe_allow_html=True)
 
-
-# ── FUNCIÓN DE BLOQUE CLÍNICO ──────────────────────────────────────────────────
-def bloque_clinico(titulo, fila, sufijo_cols="", is_hito=False, is_final=False):
+# ═══════════════════════════════════════════════════════════
+# FUNCIÓN BLOQUE CLÍNICO
+# ═══════════════════════════════════════════════════════════
+def bloque_clinico(titulo, fila, sufijo, is_hito=False, is_final=False):
     st.markdown(f"<h3 class='section-title'>{titulo}</h3>", unsafe_allow_html=True)
 
     if fila is None:
         st.info("⏳ Estado: Pendiente — aún no registrada en el sistema.")
         return
 
-    # Buscar columnas de métricas con sufijo
-    def fc(*keywords):
-        """Encuentra columna por keywords, respetando sufijo."""
-        for c in cols:
-            c_lower = c.lower()
-            if all(kw.lower() in c_lower for kw in keywords):
-                if sufijo_cols == "" and not c.endswith(".1") and not c.endswith(".2"):
-                    return c
-                elif sufijo_cols and c.endswith(sufijo_cols):
-                    return c
-        return None
-
-    col_dolor = fc("dolor", "eva") or fc("dolor")
-    col_rom   = fc("rango", "movimiento") or fc("rom")
-    col_core  = fc("fuerza", "core") or fc("core")
-    col_groc  = fc("groc")
-    col_notas = fc("notas", "médico") or fc("notas", "medico") or fc("notas")
-    col_dec   = fc("decisión") or fc("decision")
-    col_alta  = fc("motivo", "alta")
-
-    col_eval_c, col_groc_c = st.columns([2, 1])
-    with col_eval_c:
+    col_ev, col_gr = st.columns([2, 1])
+    with col_ev:
         st.subheader("Evaluación Clínica")
         m1, m2, m3 = st.columns(3)
-        m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{get_val(fila, col_dolor)}</p>', unsafe_allow_html=True)
-        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{get_val(fila, col_rom)}</p>',   unsafe_allow_html=True)
-        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{get_val(fila, col_core)}</p>', unsafe_allow_html=True)
+        m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{g(fila, f"dolor_{sufijo}")}</p>', unsafe_allow_html=True)
+        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{g(fila, f"rom_{sufijo}")}</p>',   unsafe_allow_html=True)
+        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{g(fila, f"core_{sufijo}")}</p>', unsafe_allow_html=True)
         if is_hito:
-            st.info(f"**Decisión Clínica (M-A-R):** {get_val(fila, col_dec)}")
+            st.info(f"**Decisión Clínica (M-A-R):** {g(fila, 'decision')}")
         if is_final:
-            st.success(f"**Motivo de Alta:** {get_val(fila, col_alta)}")
-    with col_groc_c:
+            st.success(f"**Motivo de Alta:** {g(fila, 'motivo_alta')}")
+
+    with col_gr:
         st.subheader("GROC")
         st.markdown(f"""
             <div style="text-align:center; padding:20px; border:2px solid #E0157A; border-radius:10px; background:#fff0f7;">
-                <span style="font-size:40px; font-weight:bold; color:#E0157A;">{get_val(fila, col_groc)}</span><br>
+                <span style="font-size:40px; font-weight:bold; color:#E0157A;">{g(fila, f"groc_{sufijo}")}</span><br>
                 <small style="color:#9B9B9B;">Puntaje de Cambio Percibido</small>
             </div>""", unsafe_allow_html=True)
 
-    mostrar_pilares(fila, sufijo_cols)
+    mostrar_pilares(fila, sufijo)
 
-    notas_val = get_val(fila, col_notas)
-    if notas_val != "—":
-        st.warning(f"**📋 NOTAS PARA EL MÉDICO TRATANTE:** {notas_val}")
+    notas = g(fila, f"notas_{sufijo}")
+    if notas != "—":
+        st.warning(f"**📋 NOTAS PARA EL MÉDICO TRATANTE:** {notas}")
 
-
-# ── RENDERIZADO DE BLOQUES ─────────────────────────────────────────────────────
-bloque_clinico("📋 EVALUACIÓN INICIAL",              fila_inicial, sufijo_cols="",   is_hito=False, is_final=False)
+# ═══════════════════════════════════════════════════════════
+# RENDER BLOQUES
+# ═══════════════════════════════════════════════════════════
+bloque_clinico("📋 EVALUACIÓN INICIAL",               fila_ini,   "ini")
 st.divider()
-bloque_clinico("🔁 SESIÓN HITO (CONTROL DE AVANCE)", fila_hito,    sufijo_cols=".1", is_hito=True,  is_final=False)
+bloque_clinico("🔁 SESIÓN HITO (CONTROL DE AVANCE)",  fila_hito,  "hito",  is_hito=True)
 st.divider()
-bloque_clinico("✅ EVALUACIÓN FINAL Y ALTA",          fila_final,   sufijo_cols=".2", is_hito=False, is_final=True)
+bloque_clinico("✅ EVALUACIÓN FINAL Y ALTA",           fila_final, "final", is_final=True)
 
-# ── FOOTER DEBUG: mostrar columnas detectadas para ajuste fino ─────────────────
-with st.expander("🔧 Inspector de columnas (para ajuste)", expanded=False):
-    st.write("**Columnas del Google Sheet:**")
-    for i, c in enumerate(cols):
-        st.write(f"`{i}`: {c}")
+# ═══════════════════════════════════════════════════════════
+# DEBUG — Inspector (comentar cuando todo funcione)
+# ═══════════════════════════════════════════════════════════
+with st.expander("🔧 Inspector de columnas (debug — ocultar cuando funcione)", expanded=False):
+    st.write("**Columnas detectadas en el Sheet:**")
+    for i, c in enumerate(df.columns):
+        st.write(f"`{i}` → `{c}`")
+    if faltantes:
+        st.error(f"⚠️ Columnas NO encontradas: {faltantes}")
+    else:
+        st.success("✅ Todas las columnas mapeadas correctamente")
