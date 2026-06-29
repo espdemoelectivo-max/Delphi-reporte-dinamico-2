@@ -113,7 +113,7 @@ def get(df_sub, key, default="—"):
 
 # ── SIDEBAR ──────────────────────────────────────────────
 st.sidebar.image(
-    "https://raw.githubusercontent.com/espdemoelectivo-max/delphi-reporte-dinamico-2/main/logo.png",
+    "https://raw.githubusercontent.com/espdemoelectivo-max/delphi-reporte-dinamico-2/main/Delphi Logo.png",
     use_container_width=True
 )
 st.sidebar.title("Gestión Delphi")
