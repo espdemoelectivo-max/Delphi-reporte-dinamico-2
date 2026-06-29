@@ -23,7 +23,7 @@ from io import StringIO
 
 @st.cache_data(ttl=30)
 def cargar_datos():
-    url = "https://docs.google.com/spreadsheets/d/1hzSkpdgYFo6RYHDr5Prj47woo5xUT318tS_i_iGWjk8/export?format=csv&gid=TU_GID"
+    url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/edit?resourcekey=&gid=923584266#gid=923584266"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
     }
