@@ -23,82 +23,131 @@ st.markdown("""
 @st.cache_data(ttl=30)
 def cargar_datos():
     url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/export?format=csv&gid=923584266"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"}
     response = requests.get(url, headers=headers, allow_redirects=True)
     response.raise_for_status()
-    data = pd.read_csv(StringIO(response.text), encoding="utf-8")
+    data = pd.read_csv(StringIO(response.text), encoding="utf-8", header=0)
     data.columns = data.columns.str.strip()
     return data
 
 df = cargar_datos()
 
-def obtener_dato(df_subset, keyword, default="Pendiente"):
-    if df_subset.empty:
+# Mapeo EXACTO de columnas por sección
+COL = {
+    "nombre":           "Nombre del Paciente",
+    "tipo_ev":          "Tipo de Evaluación a registrar",
+    # Inicial
+    "diagnostico":      "Diagnóstico médico",
+    "medico":           "Médico",
+    "kinesiologo":      "Kinesiólogo",
+    "contacto":         "Contacto",
+    "visita_medico":    "Visita Médico",
+    "inicio_licencia":  "Inicio licencia",
+    "eval_inicial":     "Evaluación inicial",
+    "dolor_ini":        "Dolor EVA inicial",
+    "rom_ini":          "Rango de Movimiento (ROM)",
+    "core_ini":         "Fuerza CORE",
+    "groc_ini":         "Groc inicial ",
+    "pilares_ini":      "(Marcar los pilares abordados en la sesión):  ",
+    "p1_ini":           "Pilar 1 - Sedentarismo",
+    "p2_ini":           "Pilar 2 - Sueño",
+    "p3_ini":           "Pilar 3 - Estrés",
+    "p4_ini":           "Pilar 4 - Alimentación",
+    "p5_ini":           "Pilar 5 - Tóxicos",
+    "p6_ini":           "Pilar 6 - Relaciones",
+    "hogar_ini":        "Recomendación para el hogar",
+    "notas_ini":        "Notas para el médico tratante:",
+    # Hito
+    "sesion_hito":      "Sesión hito",
+    "dolor_hito":       "Dolor EVA Actual",
+    "groc_hito":        "Groc Sesión Hito",
+    "pilares_hito":     "(Marcar los pilares abordados en la sesión):  .1",
+    "p1_hito":          "Pilar 1 - Sedentarismo.1",
+    "p2_hito":          "Pilar 2 - Sueño.1",
+    "p3_hito":          "Pilar 3 - Estrés.1",
+    "p4_hito":          "Pilar 4 - Alimentación.1",
+    "p5_hito":          "Pilar 5 - Tóxicos.1",
+    "p6_hito":          "Pilar 6 - Relaciones.1",
+    "hogar_hito":       "Recomendación para el hogar (pilares seleccionados)",
+    "decision":         "Decisión Clínica (Hito Intermedio):  ",
+    "notas_hito":       "Notas para el médico tratante:.1",
+    # Final
+    "eval_final":       "Evaluación Final",
+    "groc_final":       "Groc Evaluación Final",
+    "pilares_final":    "(Marcar los pilares abordados en la sesión):  .2",
+    "p1_final":         "Pilar 1 - Sedentarismo.2",
+    "p2_final":         "Pilar 2 - Sueño.2",
+    "p3_final":         "Pilar 3 - Estrés.2",
+    "p4_final":         "Pilar 4 - Alimentación.2",
+    "p5_final":         "Pilar 5 - Tóxicos.2",
+    "p6_final":         "Pilar 6 - Relaciones.2",
+    "hogar_final":      "Recomendación para el hogar (pilares seleccionados) ",
+    "notas_final":      "Notas para el médico tratante:.2",
+    "motivo_alta":      "Motivo del Alta",
+}
+
+def get(df_sub, col_key, default="—"):
+    col = COL.get(col_key)
+    if col is None or col not in df_sub.columns or df_sub.empty:
         return default
-    cols = [c for c in df_subset.columns if keyword.lower() in c.lower()]
-    if cols:
-        val = df_subset.iloc[-1][cols[0]]
-        if pd.isna(val) or str(val).strip() == "":
-            return default
-        return val
-    return default
+    val = df_sub.iloc[-1][col]
+    if pd.isna(val) or str(val).strip() == "":
+        return default
+    return str(val).strip()
 
-col_nombre = [c for c in df.columns if "nombre" in c.lower()][0]
-col_tipo_ev = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()][0]
+# Sidebar
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Test-Logo.svg/640px-Test-Logo.svg.png", width=180)
+# Nota: reemplaza la URL anterior por la URL pública real del logo Delphi
 
-st.sidebar.image("https://img.icons8.com/color/96/medical-history.png", width=80)
-st.sidebar.title("Gestión Delphi")
-
-lista_p = [p for p in df[col_nombre].dropna().unique() if str(p).strip() != ""]
+lista_p = [p for p in df[COL["nombre"]].dropna().unique() if str(p).strip() != ""]
 paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
 
-p_data = df[df[col_nombre] == paciente]
-ev_inicial = p_data[p_data[col_tipo_ev].astype(str).str.contains("Inicial", case=False, na=False)]
-ev_hito = p_data[p_data[col_tipo_ev].astype(str).str.contains("Hito", case=False, na=False)]
-ev_final = p_data[p_data[col_tipo_ev].astype(str).str.contains("Final", case=False, na=False)]
+p_data = df[df[COL["nombre"]] == paciente]
+col_tipo = COL["tipo_ev"]
+ev_inicial = p_data[p_data[col_tipo].astype(str).str.contains("Inicial", case=False, na=False)]
+ev_hito    = p_data[p_data[col_tipo].astype(str).str.contains("Hito",    case=False, na=False)]
+ev_final   = p_data[p_data[col_tipo].astype(str).str.contains("Final",   case=False, na=False)]
 
+# Header
 st.markdown(f"""
     <div class="report-header">
-        <h1 style="color: white; margin-bottom: 0; letter-spacing: 2px;">CENTRO CLÍNICO DELPHI</h1>
-        <p style="color: #E0157A; font-size: 1.1em; font-weight: 600; margin: 4px 0;">Reporte Kinesiológico Estandarizado</p>
-        <h3 style="color: #f0f0f0; margin-top: 6px;">PACIENTE: {paciente}</h3>
-    </div>
-    """, unsafe_allow_html=True)
+        <h1 style="color:white; margin-bottom:0; letter-spacing:2px;">CENTRO CLÍNICO DELPHI</h1>
+        <p style="color:#E0157A; font-size:1.1em; font-weight:600; margin:4px 0;">Reporte Kinesiológico Estandarizado</p>
+        <h3 style="color:#f0f0f0; margin-top:6px;">PACIENTE: {paciente}</h3>
+    </div>""", unsafe_allow_html=True)
 
+# Info personal
 col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.markdown(f"""<div class="info-box">
         <b style="color:#1E2D6B;">Paciente:</b> {paciente}<br>
-        <b style="color:#1E2D6B;">RUT:</b> {obtener_dato(ev_inicial, 'Rut', '—')}<br>
-        <b style="color:#1E2D6B;">Edad:</b> {obtener_dato(ev_inicial, 'Edad', '—')}
+        <b style="color:#1E2D6B;">RUT:</b> {get(ev_inicial,'rut') if 'rut' in COL else '—'}<br>
+        <b style="color:#1E2D6B;">Edad:</b> {p_data.iloc[-1]['Edad'] if not p_data.empty and 'Edad' in p_data.columns else '—'}
     </div>""", unsafe_allow_html=True)
 with col_b:
     st.markdown(f"""<div class="info-box">
-        <b style="color:#1E2D6B;">Diagnóstico Médico:</b><br>
-        {obtener_dato(ev_inicial, 'Diagnóstico', '—')}<br>
-        <b style="color:#1E2D6B;">Visita Médico:</b> {obtener_dato(ev_inicial, 'Visita Médico', '—')}
+        <b style="color:#1E2D6B;">Diagnóstico:</b><br>{get(ev_inicial,'diagnostico')}<br>
+        <b style="color:#1E2D6B;">Visita Médico:</b> {get(ev_inicial,'visita_medico')}
     </div>""", unsafe_allow_html=True)
 with col_c:
     st.markdown(f"""<div class="info-box">
-        <b style="color:#1E2D6B;">Médico:</b> {obtener_dato(ev_inicial, 'Médico', '—')}<br>
-        <b style="color:#1E2D6B;">Kinesiólogo:</b> {obtener_dato(ev_inicial, 'Kinesiólogo', '—')}<br>
-        <b style="color:#1E2D6B;">Contacto:</b> {obtener_dato(ev_inicial, 'Contacto', '—')}
+        <b style="color:#1E2D6B;">Médico:</b> {get(ev_inicial,'medico')}<br>
+        <b style="color:#1E2D6B;">Kinesiólogo:</b> {get(ev_inicial,'kinesiologo')}<br>
+        <b style="color:#1E2D6B;">Contacto:</b> {get(ev_inicial,'contacto')}
     </div>""", unsafe_allow_html=True)
 
 st.write("")
 st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>📅 CRONOLOGÍA DEL TRATAMIENTO</p>", unsafe_allow_html=True)
-d1, d2, d3, d4, d5, d6 = st.columns(6)
+d1,d2,d3,d4,d5,d6 = st.columns(6)
 fechas = [
-    ("Visita Médico",   obtener_dato(ev_inicial, 'Visita Médico', '—')),
-    ("Inicio Licencia", obtener_dato(ev_inicial, 'Inicio licencia', '—')),
-    ("Eval. Inicial",   obtener_dato(ev_inicial, 'Evaluación inicial', 'Pendiente')),
+    ("Visita Médico",   get(ev_inicial,'visita_medico')),
+    ("Inicio Licencia", get(ev_inicial,'inicio_licencia')),
+    ("Eval. Inicial",   get(ev_inicial,'eval_inicial')),
     ("1º Sesión Kine",  "—"),
-    ("Hito (Sesión 6)", obtener_dato(ev_hito, 'Sesión hito', 'Pendiente')),
-    ("Eval. Final",     obtener_dato(ev_final, 'Evaluación Final', 'Pendiente'))
+    ("Hito (Sesión 6)", get(ev_hito,'sesion_hito')),
+    ("Eval. Final",     get(ev_final,'eval_final')),
 ]
-for col, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
+for col,(label,date) in zip([d1,d2,d3,d4,d5,d6],fechas):
     col.markdown(f"""<div class="date-box">
         <small style="color:#9B9B9B; font-weight:600;">{label}</small><br>
         <b style="color:#1E2D6B;">{date}</b>
@@ -106,112 +155,101 @@ for col, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
 
 st.divider()
 
-PILARES = [
-    ("Sedentarismo", "Pilar 1"),
-    ("Sueño",        "Pilar 2"),
-    ("Estrés",       "Pilar 3"),
-    ("Alimentación", "Pilar 4"),
-    ("Tóxicos",      "Pilar 5"),
-    ("Relaciones",   "Pilar 6"),
-]
+PILARES_NOMBRES = ["Sedentarismo","Sueño","Estrés","Alimentación","Tóxicos","Relaciones"]
 
-def mostrar_pilares(df_ev):
-    st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
+def mostrar_pilares(df_ev, sufijo=""):
+    keys_pilar = [f"p1{sufijo}",f"p2{sufijo}",f"p3{sufijo}",f"p4{sufijo}",f"p5{sufijo}",f"p6{sufijo}"]
+    key_checkbox = f"pilares{sufijo}"
+    key_hogar    = f"hogar{sufijo}"
 
-    # Leer los pilares marcados en el checkbox del Forms
-    pilares_raw = obtener_dato(df_ev, 'Marcar los pilares', '')
+    pilares_raw = get(df_ev, key_checkbox, "")
     pilares_activos = []
-    if pilares_raw and pilares_raw not in ["Pendiente", "—"]:
-        for nombre, _ in PILARES:
+    if pilares_raw not in ["—", ""]:
+        for nombre in PILARES_NOMBRES:
             if nombre.lower() in pilares_raw.lower():
                 pilares_activos.append(nombre)
+
+    st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px; margin-top:16px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
 
     col_tabs, col_hogar = st.columns([3, 1])
 
     with col_tabs:
-        # Labels con emoji de alerta para los activos (los resalta visualmente en el tab)
         tab_labels = []
-        for nombre, _ in PILARES:
+        for nombre in PILARES_NOMBRES:
             if nombre in pilares_activos:
-                tab_labels.append(f"🔵 {nombre}")
+                tab_labels.append(f"✅ {nombre}")
             else:
-                tab_labels.append(nombre)
+                tab_labels.append(f"○ {nombre}")
 
         tabs = st.tabs(tab_labels)
-        for tab, (nombre, keyword) in zip(tabs, PILARES):
+        for tab, nombre, key in zip(tabs, PILARES_NOMBRES, keys_pilar):
             with tab:
-                recomendacion = obtener_dato(df_ev, keyword, "Sin indicios / No abordado")
+                recomendacion = get(df_ev, key, "Sin indicios / No abordado")
                 es_activo = nombre in pilares_activos
-
                 if es_activo:
-                    st.markdown(f'''
-                        <div style="background-color:#e8eaf6; padding:20px; border-radius:10px;
-                                    border-left:6px solid #E0157A; margin-bottom:10px;">
-                            <h4 style="color:#1E2D6B; margin-top:0; font-weight:800;">
-                                ✅ {nombre} <span style="font-size:13px; color:#E0157A; font-weight:600;">— ABORDADO EN SESIÓN</span>
-                            </h4>
-                            <p style="font-size:1.08em; margin:0; color:#1E2D6B;">{recomendacion}</p>
-                        </div>
-                    ''', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="background:#e8eaf6; padding:18px; border-radius:10px;
+                                    border-left:6px solid #E0157A;">
+                            <p style="margin:0; font-size:0.85em; font-weight:700;
+                                      color:#E0157A; text-transform:uppercase; letter-spacing:1px;">
+                                ✅ ABORDADO EN SESIÓN
+                            </p>
+                            <p style="margin:8px 0 0 0; font-size:1.08em;
+                                      color:#1E2D6B; font-weight:600;">{recomendacion}</p>
+                        </div>""", unsafe_allow_html=True)
                 else:
-                    st.markdown(f'''
-                        <div style="background-color:#f7f7f7; padding:20px; border-radius:10px;
-                                    border-left:6px solid #cccccc; margin-bottom:10px;">
-                            <h4 style="color:#9B9B9B; margin-top:0;">⬜ {nombre}</h4>
-                            <p style="font-size:1.05em; margin:0; color:#aaaaaa;">{recomendacion}</p>
-                        </div>
-                    ''', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="background:#f7f7f7; padding:18px; border-radius:10px;
+                                    border-left:6px solid #cccccc;">
+                            <p style="margin:0; font-size:0.85em; color:#bbbbbb;
+                                      text-transform:uppercase; letter-spacing:1px;">No abordado</p>
+                            <p style="margin:8px 0 0 0; font-size:1.05em;
+                                      color:#aaaaaa;">{recomendacion}</p>
+                        </div>""", unsafe_allow_html=True)
 
     with col_hogar:
-        rec_hogar = obtener_dato(df_ev, 'Recomendación para el hogar', 'Pendiente')
-        st.markdown(f'''
+        rec_hogar = get(df_ev, key_hogar, "—")
+        st.markdown(f"""
             <div class="hogar-card">
                 <h4 style="color:#1E2D6B; margin-top:0;">🏠 Recomendación para el hogar</h4>
                 <p style="font-size:1em; margin:0;">{rec_hogar}</p>
-            </div>
-        ''', unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
 
-def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hito=False, is_final=False):
+def bloque(titulo, df_ev, key_dolor, key_groc, sufijo, is_hito=False, is_final=False):
     st.markdown(f"<h3 class='section-title'>{titulo}</h3>", unsafe_allow_html=True)
-
     if df_ev.empty:
         st.info("Estado: Pendiente (Aún no registrada)")
         return
 
-    col_eval, col_groc = st.columns([2, 1])
-
+    col_eval, col_groc = st.columns([2,1])
     with col_eval:
         st.subheader("Evaluación Clínica")
-        m1, m2, m3 = st.columns(3)
-        m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{obtener_dato(df_ev, keyword_dolor)}</p>', unsafe_allow_html=True)
-        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{obtener_dato(df_ev, "Rango de Movimiento")}</p>', unsafe_allow_html=True)
-        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{obtener_dato(df_ev, "Fuerza CORE")}</p>', unsafe_allow_html=True)
-
+        m1,m2,m3 = st.columns(3)
+        m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{get(df_ev,key_dolor)}</p>', unsafe_allow_html=True)
+        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{get(df_ev,"rom_ini")}</p>', unsafe_allow_html=True)
+        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{get(df_ev,"core_ini")}</p>', unsafe_allow_html=True)
         if is_hito:
-            st.info(f"**Matriz M-A-R (Decisión):** {obtener_dato(df_ev, 'Decisión Clínica')}")
+            st.info(f"**Decisión Clínica:** {get(df_ev,'decision')}")
         if is_final:
-            st.success(f"**Motivo de Alta:** {obtener_dato(df_ev, 'Motivo del Alta')}")
-
+            st.success(f"**Motivo de Alta:** {get(df_ev,'motivo_alta')}")
     with col_groc:
         st.subheader("GROC")
-        st.markdown(f'''
+        st.markdown(f"""
             <div style="text-align:center; padding:20px; border:2px solid #E0157A;
-                        border-radius:10px; background-color:#fff0f7;">
-                <span style="font-size:40px; font-weight:bold; color:#E0157A;">
-                    {obtener_dato(df_ev, keyword_groc)}
-                </span><br>
+                        border-radius:10px; background:#fff0f7;">
+                <span style="font-size:40px; font-weight:bold; color:#E0157A;">{get(df_ev,key_groc)}</span><br>
                 <small style="color:#9B9B9B;">Puntaje de Cambio Percibido</small>
-            </div>
-        ''', unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
-    st.write("")
-    mostrar_pilares(df_ev)
-    st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {obtener_dato(df_ev, 'Notas')}")
+    mostrar_pilares(df_ev, sufijo)
+
+    key_notas = "notas_ini" if sufijo=="_ini" else ("notas_hito" if sufijo=="_hito" else "notas_final")
+    st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {get(df_ev, key_notas)}")
 
 
-mostrar_bloque_evaluacion("EVALUACIÓN INICIAL", ev_inicial, "Dolor EVA inicial", "Groc inicial")
+bloque("EVALUACIÓN INICIAL",            ev_inicial, "dolor_ini",  "groc_ini",   "_ini")
 st.divider()
-mostrar_bloque_evaluacion("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito, "Dolor EVA Actual", "Groc Sesión Hito", is_hito=True)
+bloque("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito,  "dolor_hito", "groc_hito",  "_hito", is_hito=True)
 st.divider()
-mostrar_bloque_evaluacion("EVALUACIÓN FINAL Y ALTA", ev_final, "Dolor EVA Actual", "Groc Evaluación Final", is_final=True)
+bloque("EVALUACIÓN FINAL Y ALTA",        ev_final,  "dolor_hito", "groc_final", "_final", is_final=True)
