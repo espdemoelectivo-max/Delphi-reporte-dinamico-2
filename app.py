@@ -32,97 +32,101 @@ def cargar_datos():
 
 df = cargar_datos()
 
-# Mapeo EXACTO de columnas por sección
+# Detectar columnas clave dinámicamente
+col_nombre = [c for c in df.columns if "nombre" in c.lower()][0]
+col_tipo   = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()][0]
+
+# Mapeo exacto de columnas
 COL = {
-    "nombre":           "Nombre del Paciente",
-    "tipo_ev":          "Tipo de Evaluación a registrar",
-    # Inicial
-    "diagnostico":      "Diagnóstico médico",
-    "medico":           "Médico",
-    "kinesiologo":      "Kinesiólogo",
-    "contacto":         "Contacto",
-    "visita_medico":    "Visita Médico",
-    "inicio_licencia":  "Inicio licencia",
-    "eval_inicial":     "Evaluación inicial",
-    "dolor_ini":        "Dolor EVA inicial",
-    "rom_ini":          "Rango de Movimiento (ROM)",
-    "core_ini":         "Fuerza CORE",
-    "groc_ini":         "Groc inicial ",
-    "pilares_ini":      "(Marcar los pilares abordados en la sesión):  ",
-    "p1_ini":           "Pilar 1 - Sedentarismo",
-    "p2_ini":           "Pilar 2 - Sueño",
-    "p3_ini":           "Pilar 3 - Estrés",
-    "p4_ini":           "Pilar 4 - Alimentación",
-    "p5_ini":           "Pilar 5 - Tóxicos",
-    "p6_ini":           "Pilar 6 - Relaciones",
-    "hogar_ini":        "Recomendación para el hogar",
-    "notas_ini":        "Notas para el médico tratante:",
-    # Hito
-    "sesion_hito":      "Sesión hito",
-    "dolor_hito":       "Dolor EVA Actual",
-    "groc_hito":        "Groc Sesión Hito",
-    "pilares_hito":     "(Marcar los pilares abordados en la sesión):  .1",
-    "p1_hito":          "Pilar 1 - Sedentarismo.1",
-    "p2_hito":          "Pilar 2 - Sueño.1",
-    "p3_hito":          "Pilar 3 - Estrés.1",
-    "p4_hito":          "Pilar 4 - Alimentación.1",
-    "p5_hito":          "Pilar 5 - Tóxicos.1",
-    "p6_hito":          "Pilar 6 - Relaciones.1",
-    "hogar_hito":       "Recomendación para el hogar (pilares seleccionados)",
-    "decision":         "Decisión Clínica (Hito Intermedio):  ",
-    "notas_hito":       "Notas para el médico tratante:.1",
-    # Final
-    "eval_final":       "Evaluación Final",
-    "groc_final":       "Groc Evaluación Final",
-    "pilares_final":    "(Marcar los pilares abordados en la sesión):  .2",
-    "p1_final":         "Pilar 1 - Sedentarismo.2",
-    "p2_final":         "Pilar 2 - Sueño.2",
-    "p3_final":         "Pilar 3 - Estrés.2",
-    "p4_final":         "Pilar 4 - Alimentación.2",
-    "p5_final":         "Pilar 5 - Tóxicos.2",
-    "p6_final":         "Pilar 6 - Relaciones.2",
-    "hogar_final":      "Recomendación para el hogar (pilares seleccionados) ",
-    "notas_final":      "Notas para el médico tratante:.2",
-    "motivo_alta":      "Motivo del Alta",
+    "diagnostico":   "Diagnóstico médico",
+    "medico":        "Médico",
+    "kinesiologo":   "Kinesiólogo",
+    "contacto":      "Contacto",
+    "rut":           "Rut",
+    "edad":          "Edad",
+    "visita_medico": "Visita Médico",
+    "inicio_lic":    "Inicio licencia",
+    "eval_ini_f":    "Evaluación inicial",
+    "dolor_ini":     "Dolor EVA inicial",
+    "rom_ini":       "Rango de Movimiento (ROM)",
+    "core_ini":      "Fuerza CORE",
+    "groc_ini":      "Groc inicial",
+    "pilares_ini":   "(Marcar los pilares abordados en la sesión):",
+    "p1_ini":        "Pilar 1 - Sedentarismo",
+    "p2_ini":        "Pilar 2 - Sueño",
+    "p3_ini":        "Pilar 3 - Estrés",
+    "p4_ini":        "Pilar 4 - Alimentación",
+    "p5_ini":        "Pilar 5 - Tóxicos",
+    "p6_ini":        "Pilar 6 - Relaciones",
+    "hogar_ini":     "Recomendación para el hogar",
+    "notas_ini":     "Notas para el médico tratante:",
+    "sesion_hito":   "Sesión hito",
+    "dolor_hito":    "Dolor EVA Actual",
+    "rom_hito":      "Rango de Movimiento (ROM).1",
+    "core_hito":     "Fuerza CORE.1",
+    "groc_hito":     "Groc Sesión Hito",
+    "pilares_hito":  "(Marcar los pilares abordados en la sesión):.1",
+    "p1_hito":       "Pilar 1 - Sedentarismo.1",
+    "p2_hito":       "Pilar 2 - Sueño.1",
+    "p3_hito":       "Pilar 3 - Estrés.1",
+    "p4_hito":       "Pilar 4 - Alimentación.1",
+    "p5_hito":       "Pilar 5 - Tóxicos.1",
+    "p6_hito":       "Pilar 6 - Relaciones.1",
+    "hogar_hito":    "Recomendación para el hogar (pilares seleccionados)",
+    "decision":      "Decisión Clínica (Hito Intermedio):",
+    "notas_hito":    "Notas para el médico tratante:.1",
+    "eval_final_f":  "Evaluación Final",
+    "dolor_final":   "Dolor EVA Actual.1",
+    "rom_final":     "Rango de Movimiento (ROM).2",
+    "core_final":    "Fuerza CORE.2",
+    "groc_final":    "Groc Evaluación Final",
+    "pilares_final": "(Marcar los pilares abordados en la sesión):.2",
+    "p1_final":      "Pilar 1 - Sedentarismo.2",
+    "p2_final":      "Pilar 2 - Sueño.2",
+    "p3_final":      "Pilar 3 - Estrés.2",
+    "p4_final":      "Pilar 4 - Alimentación.2",
+    "p5_final":      "Pilar 5 - Tóxicos.2",
+    "p6_final":      "Pilar 6 - Relaciones.2",
+    "hogar_final":   "Recomendación para el hogar (pilares seleccionados) ",
+    "notas_final":   "Notas para el médico tratante:.2",
+    "motivo_alta":   "Motivo del Alta",
 }
 
-def get(df_sub, col_key, default="—"):
-    col = COL.get(col_key)
-    if col is None or col not in df_sub.columns or df_sub.empty:
+def get(df_sub, key, default="—"):
+    if df_sub.empty:
         return default
-    val = df_sub.iloc[-1][col]
-    if pd.isna(val) or str(val).strip() == "":
-        return default
-    return str(val).strip()
+    # Buscar por nombre exacto primero
+    col = COL.get(key)
+    if col and col in df_sub.columns:
+        val = df_sub.iloc[-1][col]
+        if pd.isna(val) or str(val).strip() == "":
+            return default
+        return str(val).strip()
+    # Si no encuentra, buscar por keyword parcial
+    matches = [c for c in df_sub.columns if key.lower().replace("_", " ") in c.lower()]
+    if matches:
+        val = df_sub.iloc[-1][matches[0]]
+        if pd.isna(val) or str(val).strip() == "":
+            return default
+        return str(val).strip()
+    return default
 
-# Sidebar
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Test-Logo.svg/640px-Test-Logo.svg.png", width=180)
-# Nota: reemplaza la URL anterior por la URL pública real del logo Delphi
-
-lista_p = [p for p in df[COL["nombre"]].dropna().unique() if str(p).strip() != ""]
+# ── SIDEBAR ──────────────────────────────────────────────
+st.sidebar.image(
+    "https://raw.githubusercontent.com/espdemoelectivo-max/delphi-reporte-dinamico-2/main/logo.png",
+    use_container_width=True
+)
+st.sidebar.title("Gestión Delphi")
+lista_p = [p for p in df[col_nombre].dropna().unique() if str(p).strip() != ""]
 paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
 
-p_data = df[df[COL["nombre"]] == paciente]
-col_tipo_matches = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()]
-if not col_tipo_matches:
-    st.error(f"No se encontró columna de tipo de evaluación. Columnas disponibles: {df.columns.tolist()}")
-    st.stop()
-col_tipo = col_tipo_matches[0]
-
-col_nombre_matches = [c for c in df.columns if "nombre" in c.lower()]
-if not col_nombre_matches:
-    st.error(f"No se encontró columna de nombre. Columnas disponibles: {df.columns.tolist()}")
-    st.stop()
-col_nombre_real = col_nombre_matches[0]
-
-lista_p = [p for p in df[col_nombre_real].dropna().unique() if str(p).strip() != ""]
-paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
-p_data = df[df[col_nombre_real] == paciente]
+# Filtrar datos
+p_data    = df[df[col_nombre] == paciente]
 ev_inicial = p_data[p_data[col_tipo].astype(str).str.contains("Inicial", case=False, na=False)]
 ev_hito    = p_data[p_data[col_tipo].astype(str).str.contains("Hito",    case=False, na=False)]
 ev_final   = p_data[p_data[col_tipo].astype(str).str.contains("Final",   case=False, na=False)]
 
-# Header
+# ── HEADER ───────────────────────────────────────────────
 st.markdown(f"""
     <div class="report-header">
         <h1 style="color:white; margin-bottom:0; letter-spacing:2px;">CENTRO CLÍNICO DELPHI</h1>
@@ -130,13 +134,13 @@ st.markdown(f"""
         <h3 style="color:#f0f0f0; margin-top:6px;">PACIENTE: {paciente}</h3>
     </div>""", unsafe_allow_html=True)
 
-# Info personal
+# ── INFO PERSONAL ─────────────────────────────────────────
 col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.markdown(f"""<div class="info-box">
         <b style="color:#1E2D6B;">Paciente:</b> {paciente}<br>
-        <b style="color:#1E2D6B;">RUT:</b> {get(ev_inicial,'rut') if 'rut' in COL else '—'}<br>
-        <b style="color:#1E2D6B;">Edad:</b> {p_data.iloc[-1]['Edad'] if not p_data.empty and 'Edad' in p_data.columns else '—'}
+        <b style="color:#1E2D6B;">RUT:</b> {get(ev_inicial,'rut')}<br>
+        <b style="color:#1E2D6B;">Edad:</b> {get(ev_inicial,'edad')}
     </div>""", unsafe_allow_html=True)
 with col_b:
     st.markdown(f"""<div class="info-box">
@@ -150,18 +154,19 @@ with col_c:
         <b style="color:#1E2D6B;">Contacto:</b> {get(ev_inicial,'contacto')}
     </div>""", unsafe_allow_html=True)
 
+# ── CRONOLOGÍA ────────────────────────────────────────────
 st.write("")
 st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>📅 CRONOLOGÍA DEL TRATAMIENTO</p>", unsafe_allow_html=True)
 d1,d2,d3,d4,d5,d6 = st.columns(6)
 fechas = [
-    ("Visita Médico",   get(ev_inicial,'visita_medico')),
-    ("Inicio Licencia", get(ev_inicial,'inicio_licencia')),
-    ("Eval. Inicial",   get(ev_inicial,'eval_inicial')),
+    ("Visita Médico",   get(ev_inicial, 'visita_medico')),
+    ("Inicio Licencia", get(ev_inicial, 'inicio_lic')),
+    ("Eval. Inicial",   get(ev_inicial, 'eval_ini_f')),
     ("1º Sesión Kine",  "—"),
-    ("Hito (Sesión 6)", get(ev_hito,'sesion_hito')),
-    ("Eval. Final",     get(ev_final,'eval_final')),
+    ("Hito (Sesión 6)", get(ev_hito,    'sesion_hito')),
+    ("Eval. Final",     get(ev_final,   'eval_final_f')),
 ]
-for col,(label,date) in zip([d1,d2,d3,d4,d5,d6],fechas):
+for col,(label,date) in zip([d1,d2,d3,d4,d5,d6], fechas):
     col.markdown(f"""<div class="date-box">
         <small style="color:#9B9B9B; font-weight:600;">{label}</small><br>
         <b style="color:#1E2D6B;">{date}</b>
@@ -169,59 +174,40 @@ for col,(label,date) in zip([d1,d2,d3,d4,d5,d6],fechas):
 
 st.divider()
 
+# ── PILARES ───────────────────────────────────────────────
 PILARES_NOMBRES = ["Sedentarismo","Sueño","Estrés","Alimentación","Tóxicos","Relaciones"]
 
-def mostrar_pilares(df_ev, sufijo=""):
-    keys_pilar = [f"p1{sufijo}",f"p2{sufijo}",f"p3{sufijo}",f"p4{sufijo}",f"p5{sufijo}",f"p6{sufijo}"]
+def mostrar_pilares(df_ev, sufijo):
+    keys_pilar   = [f"p1{sufijo}",f"p2{sufijo}",f"p3{sufijo}",f"p4{sufijo}",f"p5{sufijo}",f"p6{sufijo}"]
     key_checkbox = f"pilares{sufijo}"
     key_hogar    = f"hogar{sufijo}"
 
     pilares_raw = get(df_ev, key_checkbox, "")
-    pilares_activos = []
-    if pilares_raw not in ["—", ""]:
-        for nombre in PILARES_NOMBRES:
-            if nombre.lower() in pilares_raw.lower():
-                pilares_activos.append(nombre)
+    pilares_activos = [n for n in PILARES_NOMBRES if n.lower() in pilares_raw.lower()] if pilares_raw != "—" else []
 
     st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px; margin-top:16px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
-
-    col_tabs, col_hogar = st.columns([3, 1])
+    col_tabs, col_hogar_ui = st.columns([3, 1])
 
     with col_tabs:
-        tab_labels = []
-        for nombre in PILARES_NOMBRES:
-            if nombre in pilares_activos:
-                tab_labels.append(f"✅ {nombre}")
-            else:
-                tab_labels.append(f"○ {nombre}")
-
+        tab_labels = [f"✅ {n}" if n in pilares_activos else f"○ {n}" for n in PILARES_NOMBRES]
         tabs = st.tabs(tab_labels)
         for tab, nombre, key in zip(tabs, PILARES_NOMBRES, keys_pilar):
             with tab:
                 recomendacion = get(df_ev, key, "Sin indicios / No abordado")
-                es_activo = nombre in pilares_activos
-                if es_activo:
+                if nombre in pilares_activos:
                     st.markdown(f"""
-                        <div style="background:#e8eaf6; padding:18px; border-radius:10px;
-                                    border-left:6px solid #E0157A;">
-                            <p style="margin:0; font-size:0.85em; font-weight:700;
-                                      color:#E0157A; text-transform:uppercase; letter-spacing:1px;">
-                                ✅ ABORDADO EN SESIÓN
-                            </p>
-                            <p style="margin:8px 0 0 0; font-size:1.08em;
-                                      color:#1E2D6B; font-weight:600;">{recomendacion}</p>
+                        <div style="background:#e8eaf6; padding:18px; border-radius:10px; border-left:6px solid #E0157A;">
+                            <p style="margin:0; font-size:0.82em; font-weight:700; color:#E0157A; text-transform:uppercase; letter-spacing:1px;">✅ ABORDADO EN SESIÓN</p>
+                            <p style="margin:8px 0 0 0; font-size:1.08em; color:#1E2D6B; font-weight:600;">{recomendacion}</p>
                         </div>""", unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
-                        <div style="background:#f7f7f7; padding:18px; border-radius:10px;
-                                    border-left:6px solid #cccccc;">
-                            <p style="margin:0; font-size:0.85em; color:#bbbbbb;
-                                      text-transform:uppercase; letter-spacing:1px;">No abordado</p>
-                            <p style="margin:8px 0 0 0; font-size:1.05em;
-                                      color:#aaaaaa;">{recomendacion}</p>
+                        <div style="background:#f7f7f7; padding:18px; border-radius:10px; border-left:6px solid #cccccc;">
+                            <p style="margin:0; font-size:0.82em; color:#bbbbbb; text-transform:uppercase; letter-spacing:1px;">No abordado</p>
+                            <p style="margin:8px 0 0 0; font-size:1.05em; color:#aaaaaa;">{recomendacion}</p>
                         </div>""", unsafe_allow_html=True)
 
-    with col_hogar:
+    with col_hogar_ui:
         rec_hogar = get(df_ev, key_hogar, "—")
         st.markdown(f"""
             <div class="hogar-card">
@@ -229,8 +215,8 @@ def mostrar_pilares(df_ev, sufijo=""):
                 <p style="font-size:1em; margin:0;">{rec_hogar}</p>
             </div>""", unsafe_allow_html=True)
 
-
-def bloque(titulo, df_ev, key_dolor, key_groc, sufijo, is_hito=False, is_final=False):
+# ── BLOQUES ───────────────────────────────────────────────
+def bloque(titulo, df_ev, key_dolor, key_rom, key_core, key_groc, sufijo, is_hito=False, is_final=False):
     st.markdown(f"<h3 class='section-title'>{titulo}</h3>", unsafe_allow_html=True)
     if df_ev.empty:
         st.info("Estado: Pendiente (Aún no registrada)")
@@ -241,8 +227,8 @@ def bloque(titulo, df_ev, key_dolor, key_groc, sufijo, is_hito=False, is_final=F
         st.subheader("Evaluación Clínica")
         m1,m2,m3 = st.columns(3)
         m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{get(df_ev,key_dolor)}</p>', unsafe_allow_html=True)
-        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{get(df_ev,"rom_ini")}</p>', unsafe_allow_html=True)
-        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{get(df_ev,"core_ini")}</p>', unsafe_allow_html=True)
+        m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{get(df_ev,key_rom)}</p>',   unsafe_allow_html=True)
+        m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{get(df_ev,key_core)}</p>', unsafe_allow_html=True)
         if is_hito:
             st.info(f"**Decisión Clínica:** {get(df_ev,'decision')}")
         if is_final:
@@ -250,8 +236,7 @@ def bloque(titulo, df_ev, key_dolor, key_groc, sufijo, is_hito=False, is_final=F
     with col_groc:
         st.subheader("GROC")
         st.markdown(f"""
-            <div style="text-align:center; padding:20px; border:2px solid #E0157A;
-                        border-radius:10px; background:#fff0f7;">
+            <div style="text-align:center; padding:20px; border:2px solid #E0157A; border-radius:10px; background:#fff0f7;">
                 <span style="font-size:40px; font-weight:bold; color:#E0157A;">{get(df_ev,key_groc)}</span><br>
                 <small style="color:#9B9B9B;">Puntaje de Cambio Percibido</small>
             </div>""", unsafe_allow_html=True)
@@ -261,9 +246,8 @@ def bloque(titulo, df_ev, key_dolor, key_groc, sufijo, is_hito=False, is_final=F
     key_notas = "notas_ini" if sufijo=="_ini" else ("notas_hito" if sufijo=="_hito" else "notas_final")
     st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {get(df_ev, key_notas)}")
 
-
-bloque("EVALUACIÓN INICIAL",            ev_inicial, "dolor_ini",  "groc_ini",   "_ini")
+bloque("EVALUACIÓN INICIAL",             ev_inicial, "dolor_ini",  "rom_ini",   "core_ini",   "groc_ini",   "_ini")
 st.divider()
-bloque("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito,  "dolor_hito", "groc_hito",  "_hito", is_hito=True)
+bloque("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito,   "dolor_hito", "rom_hito",  "core_hito",  "groc_hito",  "_hito", is_hito=True)
 st.divider()
-bloque("EVALUACIÓN FINAL Y ALTA",        ev_final,  "dolor_hito", "groc_final", "_final", is_final=True)
+bloque("EVALUACIÓN FINAL Y ALTA",         ev_final,  "dolor_final","rom_final", "core_final", "groc_final", "_final", is_final=True)
