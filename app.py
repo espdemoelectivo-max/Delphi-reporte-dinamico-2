@@ -21,7 +21,7 @@ st.markdown("""
 @st.cache_data(ttl=30)
 def cargar_datos():
     # ¡ATENCIÓN! Reemplaza 'NUEVO_GID' por el número gid de tu nueva hoja de respuestas.
-    url = "https://docs.google.com/spreadsheets/d/1hzSkpdgYFo6RYHDr5Prj47woo5xUT318tS_i_iGWjk8/export?format=csv&gid=NUEVO_GID"
+    url = "https://docs.google.com/spreadsheets/d/1hzSkpdgYFo6RYHDr5Prj47woo5xUT318tS_i_iGWjk8/export?format=csv&gid=923584266"
     data = pd.read_csv(url)
     data.columns = data.columns.str.strip()
     return data
