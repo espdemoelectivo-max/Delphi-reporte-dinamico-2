@@ -46,7 +46,7 @@ def obtener_dato(df_subset, keyword, default="Pendiente"):
     return default
 
 # Detectar columnas clave para los filtros
-col_nombre = [c for c in df.columns if "Nombre" in c][0]
+st.write(df.columns.tolist())  # línea temporal de diagnóstico
 col_tipo_ev = [c for c in df.columns if "Tipo de Evaluación" in c][0]
 
 # 3. Lógica de Selección de Paciente
