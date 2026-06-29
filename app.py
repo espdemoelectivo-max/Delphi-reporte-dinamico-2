@@ -14,10 +14,10 @@ st.markdown("""
     .metric-title { font-size: 13px; color: #9B9B9B; margin-bottom: 2px; text-transform: uppercase; font-weight: 600; }
     .metric-value { font-size: 26px; font-weight: bold; color: #1E2D6B; }
     .pilar-card { background-color: #f0f2fa; padding: 20px; border-radius: 10px; border-left: 5px solid #E0157A; margin-bottom: 10px; }
+    .hogar-card { background-color: #fff0f7; padding: 15px; border-radius: 10px; border-left: 5px solid #1E2D6B; margin-top: 10px; }
     .section-title { color: #1E2D6B; border-left: 4px solid #E0157A; padding-left: 10px; }
     div[data-testid="stSidebar"] { background-color: #1E2D6B; }
     div[data-testid="stSidebar"] * { color: white !important; }
-    div[data-testid="stSidebar"] .stSelectbox label { color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,7 +29,7 @@ def cargar_datos():
     }
     response = requests.get(url, headers=headers, allow_redirects=True)
     response.raise_for_status()
-    data = pd.read_csv(StringIO(response.text))
+    data = pd.read_csv(StringIO(response.text), encoding="utf-8")
     data.columns = data.columns.str.strip()
     return data
 
@@ -107,22 +107,59 @@ for col, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
 
 st.divider()
 
+# Pilares definidos con su keyword para buscar en las columnas del Sheet
+PILARES = [
+    ("Sedentarismo", "Pilar 1"),
+    ("Sueño",        "Pilar 2"),
+    ("Estrés",       "Pilar 3"),
+    ("Alimentación", "Pilar 4"),
+    ("Tóxicos",      "Pilar 5"),
+    ("Relaciones",   "Pilar 6"),
+]
+
+def mostrar_pilares(df_ev):
+    st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
+
+    col_tabs, col_hogar = st.columns([3, 1])
+
+    with col_tabs:
+        tabs = st.tabs([p[0] for p in PILARES])
+        for tab, (nombre, keyword) in zip(tabs, PILARES):
+            with tab:
+                recomendacion = obtener_dato(df_ev, keyword, "Sin indicios / No abordado")
+                st.markdown(f'''
+                    <div class="pilar-card">
+                        <h4 style="color:#1E2D6B; margin-top:0;">💡 {nombre}</h4>
+                        <p style="font-size: 1.05em; margin:0;">{recomendacion}</p>
+                    </div>
+                ''', unsafe_allow_html=True)
+
+    with col_hogar:
+        rec_hogar = obtener_dato(df_ev, 'Recomendación para el hogar', 'Pendiente')
+        st.markdown(f'''
+            <div class="hogar-card">
+                <h4 style="color:#1E2D6B; margin-top:0;">🏠 Recomendación para el hogar</h4>
+                <p style="font-size: 1em; margin:0;">{rec_hogar}</p>
+            </div>
+        ''', unsafe_allow_html=True)
+
+
 def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hito=False, is_final=False):
     st.markdown(f"<h3 class='section-title'>{titulo}</h3>", unsafe_allow_html=True)
-    
+
     if df_ev.empty:
         st.info("Estado: Pendiente (Aún no registrada)")
         return
 
     col_eval, col_groc = st.columns([2, 1])
-    
+
     with col_eval:
         st.subheader("Evaluación Clínica")
         m1, m2, m3 = st.columns(3)
         m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{obtener_dato(df_ev, keyword_dolor)}</p>', unsafe_allow_html=True)
         m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{obtener_dato(df_ev, "Rango de Movimiento")}</p>', unsafe_allow_html=True)
         m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{obtener_dato(df_ev, "Fuerza CORE")}</p>', unsafe_allow_html=True)
-        
+
         if is_hito:
             st.info(f"**Matriz M-A-R (Decisión):** {obtener_dato(df_ev, 'Decisión Clínica')}")
         if is_final:
@@ -136,21 +173,7 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
         </div>''', unsafe_allow_html=True)
 
     st.write("")
-    st.markdown("<p style='color:#1E2D6B; font-weight:700;'>DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
-    pilares_marcados = obtener_dato(df_ev, 'Pilares')
-    st.write(f"**Pilares registrados en esta sesión:** {pilares_marcados}")
-    
-    tabs = st.tabs(["Sedentarismo", "Sueño", "Estrés", "Alimentación", "Tóxicos", "Relaciones"])
-    recomendacion = obtener_dato(df_ev, 'Recomendación para el hogar')
-    for tab in tabs:
-        with tab:
-            st.markdown(f'''
-                <div class="pilar-card">
-                    <h4 style="color:#1E2D6B;">Recomendación Activa</h4>
-                    <p style="font-size: 1.1em;">{recomendacion}</p>
-                </div>
-                ''', unsafe_allow_html=True)
-
+    mostrar_pilares(df_ev)
     st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {obtener_dato(df_ev, 'Notas')}")
 
 
