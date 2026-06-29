@@ -187,7 +187,14 @@ def g(fila, key, default="—"):
     if col_name == "__missing__" or col_name not in fila.index:
         return default
     val = fila[col_name]
-    if pd.isna(val) or str(val).strip() in ("", "nan"):
+    if isinstance(val, pd.Series):
+        val = val.iloc[0] if not val.empty else None
+    try:
+        if pd.isna(val):
+            return default
+    except (TypeError, ValueError):
+        pass
+    if str(val).strip() in ("", "nan"):
         return default
     return str(val).strip()
 
