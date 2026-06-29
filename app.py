@@ -46,8 +46,8 @@ def obtener_dato(df_subset, keyword, default="Pendiente"):
         return val
     return default
 
-col_nombre = [c for c in df.columns if "Nombre del Paciente" in c.lower()][0]
-col_tipo_ev = [c for c in df.columns if "Tipo de Evaluación a registrar" in c.lower() and "eval" in c.lower()][0]
+col_nombre = [c for c in df.columns if "nombre" in c.lower()][0]
+col_tipo_ev = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()][0]
 
 st.sidebar.image("https://img.icons8.com/color/96/medical-history.png", width=80)
 st.sidebar.title("Gestión Delphi")
