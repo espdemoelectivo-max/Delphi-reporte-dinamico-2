@@ -23,9 +23,17 @@ from io import StringIO
 
 @st.cache_data(ttl=30)
 def cargar_datos():
-    url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/edit?resourcekey=&gid=923584266#gid=923584266"
-    response = requests.get(url, allow_redirects=True)
+    url = "https://docs.google.com/spreadsheets/d/1hzSkpdgYFo6RYHDr5Prj47woo5xUT318tS_i_iGWjk8/export?format=csv&gid=TU_GID"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers, allow_redirects=True)
     response.raise_for_status()
+    
+    # Diagnóstico: muestra las primeras 500 letras de lo que devuelve Google
+    st.text(response.text[:500])
+    st.stop()
+    
     data = pd.read_csv(StringIO(response.text))
     data.columns = data.columns.str.strip()
     return data
