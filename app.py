@@ -3,22 +3,24 @@ import pandas as pd
 import requests
 from io import StringIO
 
-# 1. Configuración Estética Global
 st.set_page_config(page_title="Reporte Clínico Delphi", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .report-header { text-align: center; padding: 10px; background-color: white; border-radius: 10px; margin-bottom: 20px; }
-    .info-box { background-color: #ffffff; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; height: 100%; }
-    .date-box { background-color: #f1f3f4; padding: 10px; border-radius: 5px; text-align: center; border: 1px solid #dcdcdc; }
-    .metric-title { font-size: 14px; color: #666; margin-bottom: 2px; text-transform: uppercase; }
-    .metric-value { font-size: 22px; font-weight: bold; color: #1a73e8; }
-    .pilar-card { background-color: #e6f4ea; padding: 20px; border-radius: 10px; border-left: 5px solid #34a853; margin-bottom: 10px;}
+    .main { background-color: #f4f5f9; }
+    .report-header { text-align: center; padding: 20px; background: linear-gradient(135deg, #1E2D6B, #2a3d8f); border-radius: 12px; margin-bottom: 20px; }
+    .info-box { background-color: #ffffff; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; height: 100%; border-top: 3px solid #1E2D6B; }
+    .date-box { background-color: #ffffff; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #e0e0e0; border-bottom: 3px solid #E0157A; }
+    .metric-title { font-size: 13px; color: #9B9B9B; margin-bottom: 2px; text-transform: uppercase; font-weight: 600; }
+    .metric-value { font-size: 26px; font-weight: bold; color: #1E2D6B; }
+    .pilar-card { background-color: #f0f2fa; padding: 20px; border-radius: 10px; border-left: 5px solid #E0157A; margin-bottom: 10px; }
+    .section-title { color: #1E2D6B; border-left: 4px solid #E0157A; padding-left: 10px; }
+    div[data-testid="stSidebar"] { background-color: #1E2D6B; }
+    div[data-testid="stSidebar"] * { color: white !important; }
+    div[data-testid="stSidebar"] .stSelectbox label { color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Conexión
 @st.cache_data(ttl=30)
 def cargar_datos():
     url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/export?format=csv&gid=923584266"
@@ -44,11 +46,9 @@ def obtener_dato(df_subset, keyword, default="Pendiente"):
         return val
     return default
 
-# Detectar columnas clave
 col_nombre = [c for c in df.columns if "nombre" in c.lower()][0]
 col_tipo_ev = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()][0]
 
-# 3. Sidebar
 st.sidebar.image("https://img.icons8.com/color/96/medical-history.png", width=80)
 st.sidebar.title("Gestión Delphi")
 
@@ -60,40 +60,36 @@ ev_inicial = p_data[p_data[col_tipo_ev].astype(str).str.contains("Inicial", case
 ev_hito = p_data[p_data[col_tipo_ev].astype(str).str.contains("Hito", case=False, na=False)]
 ev_final = p_data[p_data[col_tipo_ev].astype(str).str.contains("Final", case=False, na=False)]
 
-# Header
 st.markdown(f"""
     <div class="report-header">
-        <h1 style="color: #202124; margin-bottom: 0;">CENTRO CLÍNICO DELPHI</h1>
-        <p style="color: #5f6368; font-size: 1.1em;">Reporte Kinesiológico Estandarizado</p>
-        <h3 style="color: #d93025; margin-top: 0;">PACIENTE: {paciente}</h3>
+        <h1 style="color: white; margin-bottom: 0; letter-spacing: 2px;">CENTRO CLÍNICO DELPHI</h1>
+        <p style="color: #E0157A; font-size: 1.1em; font-weight: 600; margin: 4px 0;">Reporte Kinesiológico Estandarizado</p>
+        <h3 style="color: #f0f0f0; margin-top: 6px;">PACIENTE: {paciente}</h3>
     </div>
     """, unsafe_allow_html=True)
 
-# Bloque 1: Info Personal
 col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.markdown(f"""<div class="info-box">
-        <b>Paciente:</b> {paciente}<br>
-        <b>RUT:</b> {obtener_dato(ev_inicial, 'Rut', '—')}<br>
-        <b>Edad:</b> {obtener_dato(ev_inicial, 'Edad', '—')}
+        <b style="color:#1E2D6B;">Paciente:</b> {paciente}<br>
+        <b style="color:#1E2D6B;">RUT:</b> {obtener_dato(ev_inicial, 'Rut', '—')}<br>
+        <b style="color:#1E2D6B;">Edad:</b> {obtener_dato(ev_inicial, 'Edad', '—')}
     </div>""", unsafe_allow_html=True)
 with col_b:
     st.markdown(f"""<div class="info-box">
-        <b>Diagnóstico Médico:</b><br>
+        <b style="color:#1E2D6B;">Diagnóstico Médico:</b><br>
         {obtener_dato(ev_inicial, 'Diagnóstico', '—')}<br>
-        <b>Visita Médico:</b> {obtener_dato(ev_inicial, 'Visita Médico', '—')}
+        <b style="color:#1E2D6B;">Visita Médico:</b> {obtener_dato(ev_inicial, 'Visita Médico', '—')}
     </div>""", unsafe_allow_html=True)
 with col_c:
     st.markdown(f"""<div class="info-box">
-        <b>Médico:</b> {obtener_dato(ev_inicial, 'Médico', '—')}<br>
-        <b>Kinesiólogo:</b> {obtener_dato(ev_inicial, 'Kinesiólogo', '—')}<br>
-        <b>Contacto:</b> {obtener_dato(ev_inicial, 'Contacto', '—')}
+        <b style="color:#1E2D6B;">Médico:</b> {obtener_dato(ev_inicial, 'Médico', '—')}<br>
+        <b style="color:#1E2D6B;">Kinesiólogo:</b> {obtener_dato(ev_inicial, 'Kinesiólogo', '—')}<br>
+        <b style="color:#1E2D6B;">Contacto:</b> {obtener_dato(ev_inicial, 'Contacto', '—')}
     </div>""", unsafe_allow_html=True)
 
 st.write("")
-
-# Bloque 2: Cronología
-st.write("**CRONOLOGÍA DEL TRATAMIENTO**")
+st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px;'>📅 CRONOLOGÍA DEL TRATAMIENTO</p>", unsafe_allow_html=True)
 d1, d2, d3, d4, d5, d6 = st.columns(6)
 fechas = [
     ("Visita Médico", obtener_dato(ev_inicial, 'Visita Médico', '—')),
@@ -104,13 +100,15 @@ fechas = [
     ("Eval. Final", obtener_dato(ev_final, 'Evaluación Final', 'Pendiente'))
 ]
 for col, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
-    col.markdown(f"""<div class="date-box"><small>{label}</small><br><b>{date}</b></div>""", unsafe_allow_html=True)
+    col.markdown(f"""<div class="date-box">
+        <small style="color:#9B9B9B; font-weight:600;">{label}</small><br>
+        <b style="color:#1E2D6B;">{date}</b>
+    </div>""", unsafe_allow_html=True)
 
 st.divider()
 
-# Función de bloques
 def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hito=False, is_final=False):
-    st.markdown(f"<h3 style='color: #1a73e8; margin-top: 20px;'>{titulo}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 class='section-title'>{titulo}</h3>", unsafe_allow_html=True)
     
     if df_ev.empty:
         st.info("Estado: Pendiente (Aún no registrada)")
@@ -119,7 +117,7 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
     col_eval, col_groc = st.columns([2, 1])
     
     with col_eval:
-        st.subheader("1. Evaluación Clínica")
+        st.subheader("Evaluación Clínica")
         m1, m2, m3 = st.columns(3)
         m1.markdown(f'<p class="metric-title">DOLOR (EVA)</p><p class="metric-value">{obtener_dato(df_ev, keyword_dolor)}</p>', unsafe_allow_html=True)
         m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{obtener_dato(df_ev, "Rango de Movimiento")}</p>', unsafe_allow_html=True)
@@ -132,13 +130,13 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
 
     with col_groc:
         st.subheader("GROC")
-        st.markdown(f'''<div style="text-align: center; padding: 20px; border: 2px solid #1a73e8; border-radius: 10px;">
-            <span style="font-size: 40px; font-weight: bold;">{obtener_dato(df_ev, keyword_groc)}</span><br>
-            <small>Puntaje de Cambio Percibido</small>
+        st.markdown(f'''<div style="text-align: center; padding: 20px; border: 2px solid #E0157A; border-radius: 10px; background-color: #fff0f7;">
+            <span style="font-size: 40px; font-weight: bold; color: #E0157A;">{obtener_dato(df_ev, keyword_groc)}</span><br>
+            <small style="color:#9B9B9B;">Puntaje de Cambio Percibido</small>
         </div>''', unsafe_allow_html=True)
 
     st.write("")
-    st.subheader("DIRECTRIZ: PILARES DE SALUD ABORDADOS")
+    st.markdown("<p style='color:#1E2D6B; font-weight:700;'>DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
     pilares_marcados = obtener_dato(df_ev, 'Pilares')
     st.write(f"**Pilares registrados en esta sesión:** {pilares_marcados}")
     
@@ -148,7 +146,7 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
         with tab:
             st.markdown(f'''
                 <div class="pilar-card">
-                    <h4>Recomendación Activa</h4>
+                    <h4 style="color:#1E2D6B;">Recomendación Activa</h4>
                     <p style="font-size: 1.1em;">{recomendacion}</p>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -156,7 +154,6 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
     st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {obtener_dato(df_ev, 'Notas')}")
 
 
-# Renderizado
 mostrar_bloque_evaluacion("EVALUACIÓN INICIAL", ev_inicial, "Dolor EVA inicial", "Groc inicial")
 st.divider()
 mostrar_bloque_evaluacion("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito, "Dolor EVA Actual", "Groc Sesión Hito", is_hito=True)
