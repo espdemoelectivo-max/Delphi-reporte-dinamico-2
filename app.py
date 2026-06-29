@@ -21,7 +21,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════
-# CARGA DE DATOS — primero, antes de cualquier otra cosa
+# CARGA DE DATOS
 # ═══════════════════════════════════════════════════════════
 @st.cache_data(ttl=30)
 def cargar_datos():
@@ -30,84 +30,69 @@ def cargar_datos():
     r = requests.get(url, headers=headers, allow_redirects=True)
     r.raise_for_status()
     df = pd.read_csv(StringIO(r.text), encoding="utf-8", header=0)
-    # Strip espacios en nombres de columnas
     df.columns = df.columns.str.strip()
     return df
 
-df = cargar_datos()
-COLS = list(df.columns)  # lista real de columnas
+df    = cargar_datos()
+COLS  = list(df.columns)
 
 # ═══════════════════════════════════════════════════════════
-# INSPECTOR SIEMPRE VISIBLE AL INICIO (para debug)
-# Cuando todo funcione, cambia expanded=True a False
+# HELPERS — definidos ANTES de usarlos
+# ═══════════════════════════════════════════════════════════
+def col_por_indice(idx):
+    return COLS[idx] if idx < len(COLS) else "__missing__"
+
+def detectar_col(*keyword_groups):
+    """Acepta múltiples grupos; retorna la primera columna que matchea cualquier grupo."""
+    for keywords in keyword_groups:
+        for col in COLS:
+            col_l = col.lower()
+            if all(kw.lower() in col_l for kw in keywords):
+                return col
+    return None
+
+# ═══════════════════════════════════════════════════════════
+# DETECCIÓN DE COLUMNAS CLAVE
+# ═══════════════════════════════════════════════════════════
+col_nombre   = detectar_col(["nombre", "paciente"])
+col_rut      = detectar_col(["rut"])
+# col_tipo: múltiples intentos, luego fallback por índice 3
+col_tipo     = (detectar_col(["tipo", "evaluación"], ["tipo", "evaluacion"],
+                              ["registrar"], ["evaluación a"], ["evaluacion a"])
+                or col_por_indice(3))
+
+col_edad     = detectar_col(["edad"])                                            or col_por_indice(2)
+col_diag     = detectar_col(["diagnóstico"], ["diagnostico"])                    or col_por_indice(4)
+col_medico   = detectar_col(["médico"], ["medico"])                              or col_por_indice(5)
+col_kine     = detectar_col(["kinesiólogo"], ["kinesiologo"])                    or col_por_indice(6)
+col_contacto = detectar_col(["contacto"])                                        or col_por_indice(7)
+col_vis_med  = detectar_col(["visita", "médico"], ["visita", "medico"])          or col_por_indice(8)
+col_licencia = detectar_col(["licencia"])                                        or col_por_indice(9)
+
+# ═══════════════════════════════════════════════════════════
+# INSPECTOR (expandible — cerrar cuando todo funcione)
 # ═══════════════════════════════════════════════════════════
 with st.expander("🔧 Inspector de columnas reales del Sheet", expanded=False):
-    st.write(f"**Total columnas: {len(COLS)}**")
+    st.write(f"**Total columnas detectadas: {len(COLS)}**")
+    st.write(f"col_tipo resuelto como: `{repr(col_tipo)}`")
     for i, c in enumerate(COLS):
         st.write(f"`{i:02d}` → `{repr(c)}`")
 
 # ═══════════════════════════════════════════════════════════
-# DETECCIÓN AUTOMÁTICA DE LA COLUMNA "TIPO DE EVALUACIÓN"
-# Busca por contenido parcial para ser tolerante a variaciones
+# MAPEO COMPLETO — mezcla detección auto + índice de posición
 # ═══════════════════════════════════════════════════════════
-def detectar_col(keywords_obligatorias, keywords_excluir=None):
-    """Encuentra la primera columna que contenga todas las keywords."""
-    for col in COLS:
-        col_l = col.lower()
-        if all(kw.lower() in col_l for kw in keywords_obligatorias):
-            if keywords_excluir and any(kw.lower() in col_l for kw in keywords_excluir):
-                continue
-            return col
-    return None
-
-col_nombre   = detectar_col(["nombre", "paciente"])
-col_rut      = detectar_col(["rut"])
-col_tipo     = detectar_col(["tipo", "evaluación"]) or detectar_col(["tipo", "evaluacion"])
-col_edad     = detectar_col(["edad"])
-col_diag     = detectar_col(["diagnóstico"]) or detectar_col(["diagnostico"])
-col_medico   = detectar_col(["médico"]) or detectar_col(["medico"])
-col_kine     = detectar_col(["kinesiólogo"]) or detectar_col(["kinesiologo"])
-col_contacto = detectar_col(["contacto"])
-col_vis_med  = detectar_col(["visita", "médico"]) or detectar_col(["visita", "medico"])
-col_licencia = detectar_col(["licencia"])
-
-# Validar columnas críticas
-if not col_nombre or not col_rut or not col_tipo:
-    st.error(f"""
-    ❌ No se encontraron columnas clave.
-    - col_nombre detectada: `{col_nombre}`
-    - col_rut detectada: `{col_rut}`
-    - col_tipo detectada: `{col_tipo}`
-    
-    Revisa el inspector de columnas arriba.
-    """)
-    st.stop()
-
-# ═══════════════════════════════════════════════════════════
-# MAPEO EXACTO POR POSICIÓN (índice) — más robusto que por nombre
-# Usa los índices según el orden real del Sheet
-# ═══════════════════════════════════════════════════════════
-def col_por_indice(idx, default="__missing__"):
-    """Retorna nombre de columna por índice; default si no existe."""
-    if idx < len(COLS):
-        return COLS[idx]
-    return default
-
-# Construir C usando detección auto + fallback por índice
-# Los índices corresponden al orden que me compartiste
 C = {
     "nombre":        col_nombre,
     "rut":           col_rut,
-    "edad":          col_edad          or col_por_indice(2),
+    "edad":          col_edad,
     "tipo_eval":     col_tipo,
-    "diagnostico":   col_diag          or col_por_indice(4),
-    "medico":        col_medico        or col_por_indice(5),
-    "kinesiologo":   col_kine          or col_por_indice(6),
-    "contacto":      col_contacto      or col_por_indice(7),
-    "visita_medico": col_vis_med       or col_por_indice(8),
-    "inicio_lic":    col_licencia      or col_por_indice(9),
-
-    # EVALUACIÓN INICIAL (índices 10–23)
+    "diagnostico":   col_diag,
+    "medico":        col_medico,
+    "kinesiologo":   col_kine,
+    "contacto":      col_contacto,
+    "visita_medico": col_vis_med,
+    "inicio_lic":    col_licencia,
+    # EVALUACIÓN INICIAL
     "fecha_ini":     col_por_indice(10),
     "dolor_ini":     col_por_indice(11),
     "rom_ini":       col_por_indice(12),
@@ -122,8 +107,7 @@ C = {
     "p6_ini":        col_por_indice(21),
     "hogar_ini":     col_por_indice(22),
     "notas_ini":     col_por_indice(23),
-
-    # SESIÓN HITO (índices 24–38)
+    # SESIÓN HITO
     "fecha_hito":    col_por_indice(24),
     "dolor_hito":    col_por_indice(25),
     "rom_hito":      col_por_indice(26),
@@ -139,8 +123,7 @@ C = {
     "hogar_hito":    col_por_indice(36),
     "decision":      col_por_indice(37),
     "notas_hito":    col_por_indice(38),
-
-    # EVALUACIÓN FINAL (índices 39–53)
+    # EVALUACIÓN FINAL
     "fecha_final":   col_por_indice(39),
     "dolor_final":   col_por_indice(40),
     "rom_final":     col_por_indice(41),
@@ -161,7 +144,7 @@ C = {
 PILARES = ["Sedentarismo", "Sueño", "Estrés", "Alimentación", "Tóxicos", "Relaciones"]
 
 # ═══════════════════════════════════════════════════════════
-# FUNCIÓN DE EXTRACCIÓN SEGURA
+# EXTRACCIÓN SEGURA
 # ═══════════════════════════════════════════════════════════
 def g(fila, key, default="—"):
     if fila is None:
@@ -175,7 +158,7 @@ def g(fila, key, default="—"):
     return str(val).strip()
 
 # ═══════════════════════════════════════════════════════════
-# SIDEBAR — Selección de paciente por RUT
+# SIDEBAR
 # ═══════════════════════════════════════════════════════════
 st.sidebar.image(
     "https://raw.githubusercontent.com/espdemoelectivo-max/delphi-reporte-dinamico-2/main/Delphi Logo.png",
@@ -197,10 +180,9 @@ opcion     = st.sidebar.selectbox("Seleccionar Paciente:", pacientes["display"].
 rut_sel    = pacientes.loc[pacientes["display"] == opcion, C["rut"]].values[0].strip()
 nombre_sel = pacientes.loc[pacientes["display"] == opcion, C["nombre"]].values[0].strip()
 
-# Todas las filas del paciente (por RUT)
+# Filas del paciente por RUT
 filas = df[df[C["rut"]].astype(str).str.strip() == rut_sel]
 
-# Separar por tipo de evaluación
 def ultima_fila(keyword):
     mask = filas[C["tipo_eval"]].astype(str).str.contains(keyword, case=False, na=False)
     sub  = filas[mask]
@@ -209,8 +191,7 @@ def ultima_fila(keyword):
 fila_ini   = ultima_fila("Inicial")
 fila_hito  = ultima_fila("Hito")
 fila_final = ultima_fila("Final")
-
-fila_demo = next((f for f in [fila_ini, fila_hito, fila_final] if f is not None), None)
+fila_demo  = next((f for f in [fila_ini, fila_hito, fila_final] if f is not None), None)
 
 # ═══════════════════════════════════════════════════════════
 # HEADER
@@ -271,7 +252,7 @@ st.divider()
 # PILARES
 # ═══════════════════════════════════════════════════════════
 def mostrar_pilares(fila, sufijo):
-    pilares_raw    = g(fila, f"pilares_{sufijo}", "")
+    pilares_raw     = g(fila, f"pilares_{sufijo}", "")
     pilares_activos = [n for n in PILARES if n.lower() in pilares_raw.lower()] if pilares_raw != "—" else []
 
     st.markdown("<p style='color:#1E2D6B; font-weight:700; font-size:15px; margin-top:16px;'>🧩 DIRECTRIZ: PILARES DE SALUD ABORDADOS</p>", unsafe_allow_html=True)
@@ -280,30 +261,28 @@ def mostrar_pilares(fila, sufijo):
     with col_tabs_ui:
         tab_labels = [f"✅ {n}" if n in pilares_activos else f"○ {n}" for n in PILARES]
         tabs = st.tabs(tab_labels)
-        claves = [f"p1_{sufijo}", f"p2_{sufijo}", f"p3_{sufijo}",
-                  f"p4_{sufijo}", f"p5_{sufijo}", f"p6_{sufijo}"]
+        claves = [f"p{i+1}_{sufijo}" for i in range(6)]
         for tab, nombre, clave in zip(tabs, PILARES, claves):
             with tab:
                 rec = g(fila, clave, "Sin indicaciones registradas")
                 if nombre in pilares_activos:
                     st.markdown(f"""
                         <div style="background:#e8eaf6;padding:18px;border-radius:10px;border-left:6px solid #E0157A;">
-                            <p style="margin:0;font-size:0.82em;font-weight:700;color:#E0157A;text-transform:uppercase;letter-spacing:1px;">✅ ABORDADO EN SESIÓN</p>
+                            <p style="margin:0;font-size:0.82em;font-weight:700;color:#E0157A;text-transform:uppercase;">✅ ABORDADO EN SESIÓN</p>
                             <p style="margin:8px 0 0 0;font-size:1.08em;color:#1E2D6B;font-weight:600;">{rec}</p>
                         </div>""", unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                         <div style="background:#f7f7f7;padding:18px;border-radius:10px;border-left:6px solid #ccc;">
-                            <p style="margin:0;font-size:0.82em;color:#bbb;text-transform:uppercase;letter-spacing:1px;">No abordado</p>
+                            <p style="margin:0;font-size:0.82em;color:#bbb;text-transform:uppercase;">No abordado</p>
                             <p style="margin:8px 0 0 0;font-size:1.05em;color:#aaa;">{rec}</p>
                         </div>""", unsafe_allow_html=True)
 
     with col_hogar_ui:
-        rec_hogar = g(fila, f"hogar_{sufijo}")
         st.markdown(f"""
             <div class="hogar-card">
                 <h4 style="color:#1E2D6B;margin-top:0;">🏠 Recomendación para el hogar</h4>
-                <p style="font-size:1em;margin:0;">{rec_hogar}</p>
+                <p style="font-size:1em;margin:0;">{g(fila, f"hogar_{sufijo}")}</p>
             </div>""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════
