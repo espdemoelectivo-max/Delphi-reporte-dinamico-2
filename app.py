@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
+import requests
+from io import StringIO
 
 # 1. Configuración Estética Global
 st.set_page_config(page_title="Reporte Clínico Delphi", layout="wide")
 
-# CSS personalizado para emular el estilo (Colores Delphi)
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -17,34 +18,24 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Conexión Automatizada (TTL=30 segundos)
-import requests
-from io import StringIO
-
+# 2. Conexión
 @st.cache_data(ttl=30)
 def cargar_datos():
-    url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/edit?resourcekey=&gid=923584266#gid=923584266"
+    url = "https://docs.google.com/spreadsheets/d/1HdQ0uLeISE-8fdFdyNNu9M5tZu4Ydl17nMdo1M-uXv4/export?format=csv&gid=923584266"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
     }
     response = requests.get(url, headers=headers, allow_redirects=True)
     response.raise_for_status()
-    
-    # Diagnóstico: muestra las primeras 500 letras de lo que devuelve Google
-    st.text(response.text[:500])
-    st.stop()
-    
     data = pd.read_csv(StringIO(response.text))
     data.columns = data.columns.str.strip()
     return data
 
 df = cargar_datos()
 
-# Función dinámica para extraer datos evitando errores por cambios en los nombres de las columnas
 def obtener_dato(df_subset, keyword, default="Pendiente"):
     if df_subset.empty:
         return default
-    # Busca la primera columna que contenga la palabra clave
     cols = [c for c in df_subset.columns if keyword.lower() in c.lower()]
     if cols:
         val = df_subset.iloc[-1][cols[0]]
@@ -53,28 +44,23 @@ def obtener_dato(df_subset, keyword, default="Pendiente"):
         return val
     return default
 
-# Detectar columnas clave para los filtros
-st.write(df.columns.tolist())  # línea temporal de diagnóstico
-col_tipo_ev = [c for c in df.columns if "Tipo de Evaluación" in c][0]
+# Detectar columnas clave
+col_nombre = [c for c in df.columns if "nombre" in c.lower()][0]
+col_tipo_ev = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()][0]
 
-# 3. Lógica de Selección de Paciente
+# 3. Sidebar
 st.sidebar.image("https://img.icons8.com/color/96/medical-history.png", width=80)
 st.sidebar.title("Gestión Delphi")
 
-# Lista de pacientes únicos limpiando vacíos
 lista_p = [p for p in df[col_nombre].dropna().unique() if str(p).strip() != ""]
 paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
 
-# Filtrar TODA la información del paciente seleccionado
 p_data = df[df[col_nombre] == paciente]
-
-# Separar la información según el tipo de evaluación en 3 variables distintas
 ev_inicial = p_data[p_data[col_tipo_ev].astype(str).str.contains("Inicial", case=False, na=False)]
 ev_hito = p_data[p_data[col_tipo_ev].astype(str).str.contains("Hito", case=False, na=False)]
 ev_final = p_data[p_data[col_tipo_ev].astype(str).str.contains("Final", case=False, na=False)]
 
-# --- ESTRUCTURA VISUAL DEL REPORTE ---
-
+# Header
 st.markdown(f"""
     <div class="report-header">
         <h1 style="color: #202124; margin-bottom: 0;">CENTRO CLÍNICO DELPHI</h1>
@@ -83,7 +69,7 @@ st.markdown(f"""
     </div>
     """, unsafe_allow_html=True)
 
-# BLOQUE 1: Información Personal (Alimentado por la evaluación inicial)
+# Bloque 1: Info Personal
 col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.markdown(f"""<div class="info-box">
@@ -104,16 +90,16 @@ with col_c:
         <b>Contacto:</b> {obtener_dato(ev_inicial, 'Contacto', '—')}
     </div>""", unsafe_allow_html=True)
 
-st.write("") 
+st.write("")
 
-# BLOQUE 2: Recuadros de Fechas (Timeline general)
+# Bloque 2: Cronología
 st.write("**CRONOLOGÍA DEL TRATAMIENTO**")
 d1, d2, d3, d4, d5, d6 = st.columns(6)
 fechas = [
     ("Visita Médico", obtener_dato(ev_inicial, 'Visita Médico', '—')),
     ("Inicio Licencia", obtener_dato(ev_inicial, 'Inicio licencia', '—')),
     ("Eval. Inicial", obtener_dato(ev_inicial, 'Evaluación inicial', 'Pendiente')),
-    ("1º Sesión Kine", "—"), 
+    ("1º Sesión Kine", "—"),
     ("Hito (Sesión 6)", obtener_dato(ev_hito, 'Sesión hito', 'Pendiente')),
     ("Eval. Final", obtener_dato(ev_final, 'Evaluación Final', 'Pendiente'))
 ]
@@ -122,18 +108,14 @@ for col, (label, date) in zip([d1, d2, d3, d4, d5, d6], fechas):
 
 st.divider()
 
-# --- FUNCIÓN DE RENDERIZADO DEL FORMATO M-A-R ---
-# Esta función permite crear el mismo bloque exacto sin tener que copiar y pegar el código 3 veces.
-
+# Función de bloques
 def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hito=False, is_final=False):
     st.markdown(f"<h3 style='color: #1a73e8; margin-top: 20px;'>{titulo}</h3>", unsafe_allow_html=True)
     
-    # Si la evaluación no existe aún para el paciente, muestra el banner y corta la ejecución
     if df_ev.empty:
         st.info("Estado: Pendiente (Aún no registrada)")
         return
 
-    # Si existe, renderiza el bloque 3 y 4
     col_eval, col_groc = st.columns([2, 1])
     
     with col_eval:
@@ -143,7 +125,6 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
         m2.markdown(f'<p class="metric-title">RANGO MOV.</p><p class="metric-value">{obtener_dato(df_ev, "Rango de Movimiento")}</p>', unsafe_allow_html=True)
         m3.markdown(f'<p class="metric-title">FUERZA CORE</p><p class="metric-value">{obtener_dato(df_ev, "Fuerza CORE")}</p>', unsafe_allow_html=True)
         
-        # Muestra resultados específicos si es la sesión hito o la final
         if is_hito:
             st.info(f"**Matriz M-A-R (Decisión):** {obtener_dato(df_ev, 'Decisión Clínica')}")
         if is_final:
@@ -175,12 +156,9 @@ def mostrar_bloque_evaluacion(titulo, df_ev, keyword_dolor, keyword_groc, is_hit
     st.warning(f"**NOTAS PARA EL MÉDICO TRATANTE:** {obtener_dato(df_ev, 'Notas')}")
 
 
-# --- RENDERIZADO SIMULTÁNEO DE LAS SESIONES ---
-
+# Renderizado
 mostrar_bloque_evaluacion("EVALUACIÓN INICIAL", ev_inicial, "Dolor EVA inicial", "Groc inicial")
 st.divider()
-
 mostrar_bloque_evaluacion("SESIÓN HITO (CONTROL DE AVANCE)", ev_hito, "Dolor EVA Actual", "Groc Sesión Hito", is_hito=True)
 st.divider()
-
 mostrar_bloque_evaluacion("EVALUACIÓN FINAL Y ALTA", ev_final, "Dolor EVA Actual", "Groc Evaluación Final", is_final=True)
