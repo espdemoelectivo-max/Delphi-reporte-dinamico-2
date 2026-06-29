@@ -103,7 +103,21 @@ lista_p = [p for p in df[COL["nombre"]].dropna().unique() if str(p).strip() != "
 paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
 
 p_data = df[df[COL["nombre"]] == paciente]
-col_tipo = COL["tipo_ev"]
+col_tipo_matches = [c for c in df.columns if "tipo" in c.lower() and "eval" in c.lower()]
+if not col_tipo_matches:
+    st.error(f"No se encontró columna de tipo de evaluación. Columnas disponibles: {df.columns.tolist()}")
+    st.stop()
+col_tipo = col_tipo_matches[0]
+
+col_nombre_matches = [c for c in df.columns if "nombre" in c.lower()]
+if not col_nombre_matches:
+    st.error(f"No se encontró columna de nombre. Columnas disponibles: {df.columns.tolist()}")
+    st.stop()
+col_nombre_real = col_nombre_matches[0]
+
+lista_p = [p for p in df[col_nombre_real].dropna().unique() if str(p).strip() != ""]
+paciente = st.sidebar.selectbox("Seleccionar Paciente:", lista_p)
+p_data = df[df[col_nombre_real] == paciente]
 ev_inicial = p_data[p_data[col_tipo].astype(str).str.contains("Inicial", case=False, na=False)]
 ev_hito    = p_data[p_data[col_tipo].astype(str).str.contains("Hito",    case=False, na=False)]
 ev_final   = p_data[p_data[col_tipo].astype(str).str.contains("Final",   case=False, na=False)]
