@@ -277,7 +277,6 @@ fechas = [
     ("Visita Médico",   g(fila_demo,  "visita_medico")),
     ("Inicio Licencia", g(fila_demo,  "inicio_lic")),
     ("Eval. Inicial",   g(fila_ini,   "fecha_ini")),
-    ("1º Sesión Kine",  "—"),
     ("Hito (Sesión 6)", g(fila_hito,  "fecha_hito")),
     ("Eval. Final",     g(fila_final, "fecha_final")),
 ]
