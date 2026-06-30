@@ -371,10 +371,4 @@ st.divider()
 bloque_clinico(" EVALUACIÓN FINAL",           fila_final, "final", is_final=True)
 
 # ═══════════════════════════════════════════════════════════
-# DEBUG — solo visible si algo falla
-# ═══════════════════════════════════════════════════════════
-with st.expander("🔧 Inspector (cerrar cuando todo funcione)", expanded=False):
-    st.write(f"**Columna tipo_eval:** `{C['tipo_eval']}`")
-    st.write(f"**Total columnas:** {len(COLS)}")
-    for i, c in enumerate(COLS):
-        st.write(f"`{i:02d}` → `{repr(c)}`")
+
