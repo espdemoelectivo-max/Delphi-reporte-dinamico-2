@@ -300,7 +300,7 @@ def mostrar_pilares(fila, sufijo):
     col_tabs_ui, col_hogar_ui = st.columns([3, 1])
 
     with col_tabs_ui:
-        tab_labels = [f"✅ {n}" if n in pilares_activos else f"○ {n}" for n in PILARES]
+        tab_labels = [f"🟢 {n}" if n in pilares_activos else f"🔴{n}" for n in PILARES]
         tabs = st.tabs(tab_labels)
         claves = [f"p{i+1}_{sufijo}" for i in range(6)]
         for tab, nombre, clave in zip(tabs, PILARES, claves):
