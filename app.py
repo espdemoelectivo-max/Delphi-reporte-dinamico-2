@@ -309,7 +309,7 @@ def mostrar_pilares(fila, sufijo):
                 if nombre in pilares_activos:
                     st.markdown(f"""
                         <div style="background:#e8eaf6;padding:18px;border-radius:10px;border-left:6px solid #E0157A;">
-                            <p style="margin:0;font-size:0.82em;font-weight:700;color:#E0157A;text-transform:uppercase;">✅ ABORDADO EN SESIÓN</p>
+                            <p style="margin:0;font-size:0.82em;font-weight:700;color:#E0157A;text-transform:uppercase;">PILAR ABORDADO EN SESIÓN</p>
                             <p style="margin:8px 0 0 0;font-size:1.08em;color:#1E2D6B;font-weight:600;">{rec}</p>
                         </div>""", unsafe_allow_html=True)
                 else:
