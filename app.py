@@ -364,11 +364,11 @@ def bloque_clinico(titulo, fila, sufijo, is_hito=False, is_final=False):
 # ═══════════════════════════════════════════════════════════
 # RENDER
 # ═══════════════════════════════════════════════════════════
-bloque_clinico("📋 EVALUACIÓN INICIAL",               fila_ini,   "ini")
+bloque_clinico("EVALUACIÓN INICIAL",               fila_ini,   "ini")
 st.divider()
-bloque_clinico("🔁 SESIÓN HITO (CONTROL DE AVANCE)",  fila_hito,  "hito",  is_hito=True)
+bloque_clinico("SESIÓN HITO (CONTROL DE AVANCE)",  fila_hito,  "hito",  is_hito=True)
 st.divider()
-bloque_clinico("✅ EVALUACIÓN FINAL Y ALTA",           fila_final, "final", is_final=True)
+bloque_clinico("EVALUACIÓN FINAL",           fila_final, "final", is_final=True)
 
 # ═══════════════════════════════════════════════════════════
 # DEBUG — solo visible si algo falla
