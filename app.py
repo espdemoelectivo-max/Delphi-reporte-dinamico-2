@@ -359,7 +359,7 @@ def bloque_clinico(titulo, fila, sufijo, is_hito=False, is_final=False):
 
     notas = g(fila, f"notas_{sufijo}")
     if notas != "—":
-        st.warning(f"**📋 NOTAS PARA EL MÉDICO TRATANTE:** {notas}")
+        st.warning(f"**📋 NOTAS:** {notas}")
 
 # ═══════════════════════════════════════════════════════════
 # RENDER
